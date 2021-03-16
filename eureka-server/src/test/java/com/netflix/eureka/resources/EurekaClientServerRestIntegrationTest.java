@@ -45,6 +45,10 @@ import static org.mockito.Mockito.when;
  *
  * @author Tomasz Bak
  */
+
+/**
+ * 在这个测试类里面，他会模拟eureka注册中心启动
+ */
 public class EurekaClientServerRestIntegrationTest {
 
     private static final String[] EUREKA1_WAR_DIRS = {"build/libs", "eureka-server/build/libs"};
@@ -67,6 +71,10 @@ public class EurekaClientServerRestIntegrationTest {
 
     private static String eurekaServiceUrl;
 
+    /**
+     * 初始化一些资源 , 例如准备一些http请求的工具类信息
+     * @throws Exception
+     */
     @BeforeClass
     public static void setUp() throws Exception {
         injectEurekaConfiguration();
@@ -127,6 +135,9 @@ public class EurekaClientServerRestIntegrationTest {
         assertThat(heartBeatResponse.getEntity(), is(nullValue()));
     }
 
+    /**
+     * 测试服务丢失
+     */
     @Test
     public void testMissedHeartbeat() throws Exception {
         InstanceInfo instanceInfo = instanceInfoIt.next();
@@ -179,6 +190,10 @@ public class EurekaClientServerRestIntegrationTest {
         assertThat(fetchedInstance.getStatus(), is(equalTo(InstanceStatus.UNKNOWN)));
     }
 
+    /**
+     * 测试批量
+     * @throws Exception
+     */
     @Test
     public void testBatch() throws Exception {
         InstanceInfo instanceInfo = instanceInfoIt.next();
@@ -232,18 +247,31 @@ public class EurekaClientServerRestIntegrationTest {
     }
 
     private static void startServer() throws Exception {
+        /*
         File warFile = findWar();
 
         server = new Server(8080);
 
         WebAppContext webapp = new WebAppContext();
         webapp.setContextPath("/");
+          默认情况下,需要将eureka-server打成一个war包 , 通过war包进行启动
+         //
         webapp.setWar(warFile.getAbsolutePath());
         server.setHandler(webapp);
 
         server.start();
 
         eurekaServiceUrl = "http://localhost:8080/v2";
+        */
+        server = new Server(8080);
+
+        WebAppContext webAppCxt = new WebAppContext(new File("./eureka-server/src/main/webapp").getAbsolutePath(),"/");
+        webAppCxt.setDescriptor(new File("./eureka-server/src/main/webapp/WEB-INF/web.xml").getAbsolutePath());
+        webAppCxt.setResourceBase(new File("./eureka-server/src/main/resources").getAbsolutePath());
+        webAppCxt.setClassLoader(Thread.currentThread().getContextClassLoader());
+        server.setHandler(webAppCxt);
+        server.start();
+
     }
 
     private static File findWar() {
@@ -255,6 +283,8 @@ public class EurekaClientServerRestIntegrationTest {
                 break;
             }
         }
+
+
         if (dir == null) {
             throw new IllegalStateException("No directory found at any in any pre-configured location: " + Arrays.toString(EUREKA1_WAR_DIRS));
         }

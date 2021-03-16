@@ -1,8 +1,13 @@
 buildscript {
-    repositories { jcenter() }
+    repositories {
+        mavenLocal()
+        maven { url 'http://maven.aliyun.com/nexus/content/groups/public/' }
+        maven{ url 'http://maven.aliyun.com/nexus/content/repositories/jcenter'}
+
+    }
 
     dependencies {
-        classpath 'com.netflix.nebula:gradle-extra-configurations-plugin:2.2.+'
+        classpath 'com.android.tools.build:gradle:2.2.3'
     }
 }
 
@@ -62,7 +67,10 @@ subprojects {
     targetCompatibility = 1.8
 
     repositories {
-        jcenter()
+        mavenLocal()
+        maven { url 'http://maven.aliyun.com/nexus/content/groups/public/' }
+        maven{ url 'http://maven.aliyun.com/nexus/content/repositories/jcenter'}
+
     }
 
     test {
