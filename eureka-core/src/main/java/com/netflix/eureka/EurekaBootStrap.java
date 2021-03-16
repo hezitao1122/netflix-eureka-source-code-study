@@ -103,7 +103,7 @@ public class EurekaBootStrap implements ServletContextListener {
 
     /**
      * Initializes Eureka, including syncing up with other Eureka peers and publishing the registry.
-     *
+     * 初始化eureka, 包括初始化eureka-server,进行服务注册
      * @see
      * javax.servlet.ServletContextListener#contextInitialized(javax.servlet.ServletContextEvent)
      */
@@ -123,17 +123,35 @@ public class EurekaBootStrap implements ServletContextListener {
 
     /**
      * Users can override to initialize the environment themselves.
+     *
+     * 初始化eureka-server的环境
+     * 包括初始化
+     * 1. 数据中心
+     * 2. eureka运行环境
+     * 这两个配置
      */
     protected void initEurekaEnvironment() throws Exception {
         logger.info("Setting the eureka configuration..");
-
+        /**
+         * 初始化一个单例的配置管理器, 下面的getConfigInstace方法还会进行配置初始化
+         * 1. 使用两步检查方法进行初始化单例
+         * 2. 单例初始化的时候,是double check + volatile 进行
+         */
         String dataCenter = ConfigurationManager.getConfigInstance().getString(EUREKA_DATACENTER);
+        /**
+         * 1.查看数据中心是否存在，key是eureka.datacenter
+         * 2.不存在的话设置默认的数据中心
+         */
         if (dataCenter == null) {
             logger.info("Eureka data center value eureka.datacenter is not set, defaulting to default");
             ConfigurationManager.getConfigInstance().setProperty(ARCHAIUS_DEPLOYMENT_DATACENTER, DEFAULT);
         } else {
             ConfigurationManager.getConfigInstance().setProperty(ARCHAIUS_DEPLOYMENT_DATACENTER, dataCenter);
         }
+        /**
+         * 1.查看eureka的环境是否设置了，key是eureka.environment
+         * 2.如果没有，默认给test环境
+         */
         String environment = ConfigurationManager.getConfigInstance().getString(EUREKA_ENVIRONMENT);
         if (environment == null) {
             ConfigurationManager.getConfigInstance().setProperty(ARCHAIUS_DEPLOYMENT_ENVIRONMENT, TEST);
