@@ -68,6 +68,10 @@ public class DefaultEurekaServerConfig implements EurekaServerConfig {
     private static final String EUREKA_ENVIRONMENT = "eureka.environment";
     private static final Logger logger = LoggerFactory
             .getLogger(DefaultEurekaServerConfig.class);
+
+    /**
+     * 硬编码到这,可以获取配置项.没配置则用默认值.这里面包含了所有默认的配置值
+     */
     private static final DynamicPropertyFactory configInstance = com.netflix.config.DynamicPropertyFactory
             .getInstance();
     private static final DynamicStringProperty EUREKA_PROPS_FILE = DynamicPropertyFactory
@@ -106,11 +110,23 @@ public class DefaultEurekaServerConfig implements EurekaServerConfig {
                 EUREKA_ENVIRONMENT, TEST);
         ConfigurationManager.getConfigInstance().setProperty(
                 ARCHAIUS_DEPLOYMENT_ENVIRONMENT, env);
-
+        /*
+            1. 这里要对应的是要加载eureka-server的配置文件的默认的名称
+            2. 默认是eureka-server
+         */
         String eurekaPropsFile = EUREKA_PROPS_FILE.get();
         try {
-            // ConfigurationManager
-            // .loadPropertiesFromResources(eurekaPropsFile);
+            /*
+                (1).把这个配置文件的名称传过去,
+                (2).然后拼上后缀(properties) ，
+                 (3) .并读取加载进成一个properties对象
+                 (4) .然后根据文件名为key , 将加载出来的properties对象放到单例的配置管理中去
+
+                 ````````````````````````````````````````
+                 (1) 如果第一步的单例初始化不是定制的AggregatedConfiguration类型
+                 (2) 则进行load加载,加载类一定得实现Configuration接口
+
+             */
             ConfigurationManager
                     .loadCascadedPropertiesFromResources(eurekaPropsFile);
         } catch (IOException e) {
@@ -262,6 +278,9 @@ public class DefaultEurekaServerConfig implements EurekaServerConfig {
 
     @Override
     public int getWaitTimeInMsWhenSyncEmpty() {
+        /**
+         * 这里了硬编码了一些默认值
+         */
         return configInstance.getIntProperty(
                 namespace + "waitTimeInMsWhenSyncEmpty", (1000 * 60 * 5)).get();
     }
