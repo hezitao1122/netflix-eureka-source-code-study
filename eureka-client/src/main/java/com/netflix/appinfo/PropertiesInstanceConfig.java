@@ -51,6 +51,9 @@ import static com.netflix.appinfo.PropertyBasedInstanceConfigConstants.*;
 public abstract class PropertiesInstanceConfig extends AbstractInstanceConfig implements EurekaInstanceConfig {
 
     protected final String namespace;
+    /**
+     * 提供默认值的factory
+     */
     protected final DynamicPropertyFactory configInstance;
     private String appGrpNameFromEnv;
 

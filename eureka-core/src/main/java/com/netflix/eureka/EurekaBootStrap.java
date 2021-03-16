@@ -163,19 +163,29 @@ public class EurekaBootStrap implements ServletContextListener {
     /**
      * init hook for server context. Override for custom logic.
      * 第一步: 这里会先去加载properties文件中的配置
-     * 第二步: 初始化eureka-server内部的eureka-client 用来跟其他eureka节点注册和通信
-     * 第三步: 处理注册相关的事情
-     * 第四步 : 处理peer节点相关的数据
-     * 第五步: eureka-server的上下文构建
-     * 第六步: 处理一些善后的事情,从相邻的eureka节点拷贝的注册信息
-     * 第七步: 处理一些善后的事情,注册所有的监控
+     * 第二步:
+     * 第三步: 初始化eureka-server内部的eureka-client 用来跟其他eureka节点注册和通信
+     * 第四步: 处理注册相关的事情
+     * 第五步 : 处理peer节点相关的数据
+     * 第六步: eureka-server的上下文构建
+     * 第七步: 处理一些善后的事情,从相邻的eureka节点拷贝的注册信息
+     * 第八步: 处理一些善后的事情,注册所有的监控
      */
     protected void initEurekaServerContext() throws Exception {
         /*
-        第一步
-            这里会先去加载properties文件中的配置
-            EurekaServerConfig这个类,相当于是一个Map,是专门提供eureka-server配置项的API方法.
-            适合一些更新没那么频繁的项目
+        第一步  获取配置项的代码阅读
+            1.EurekaServerConfig这个类,相当于是一个Map,是专门提供eureka-server   配置项的API方法. 适合一些更新没那么频繁的项目
+            2. new DefaultEurekaServerConfig().init()配置项的加载
+                 1) EUREKA_PROPS_FILE    对应要加载的配置文件的名称
+                    默认是eureka-server
+                2) ConfigurationManager
+                   （1）.把这个配置文件的名称传过去,
+                   （2）.然后拼上后缀(properties) ，
+                    (3) .并读取加载进成一个properties对象
+                    (4) .然后根据文件名为key , 将加载出来的properties对象放到单例            的配置管理中去
+                3).此时ConfigurationManager中即有了各个配置项
+                4).DefaultEurekaServerConfig方法提供配置API,都是通过硬编码配置项      的名称
+                5)如果没有配置,则全部进行默认值的加载,从DynamicPropertyFactory中      获取配置
          */
         EurekaServerConfig eurekaServerConfig = new DefaultEurekaServerConfig();
 
@@ -189,13 +199,37 @@ public class EurekaBootStrap implements ServletContextListener {
 
 
         /*
-         第二步 :初始化eureka-server内部的eureka-client
-                用来跟其他eureka节点注册和通信
-
+         第二步 : 初始化
+            1. ApplicationInfo
+                1). 相当于每一个ApplicationInfo就相当于一个eureka client
+            2. EurekaInstanceConfig
+                1) 将eureka-client.properties文件中的配置项加载进ConfigurationManager之中
+                2) 基于EurekaInstanceConfig来对配置项API进行暴露
+                3) EurekaInstanceConfig之中会提供一些默认值的硬编码存储
+                4) 存储的数据为: 例如
+                    InstanceId\Appname等
+            3. Eureka Server
+                1) Eureka Server自己也是一个Eureka Client
+                2) 会将自己作为一个Eureka Client把自己当成一个服务
+                3) 将自己注册到其他的Eureka Server上,组成集群
+                4) 所以Eureka Server也是有Application \ Instance这些概念
+             4.EurekaConfigBasedInstanceInfoProvider
+                1) 这里会传入一个上述读取出来的 EurekaInstanceConfig配置类
+                2) 通过构造器模式,从传进来的config对象中取参数,完成整个InstanceInfo的构造.拿到一个静态内部类的对象
+                3) 给InstanceInfo设置一个租约信息
+              5.ApplicationInfoManager
+                1) 直接通过InstanceInfo和EurekaInstanceConfig对象,构建一个ApplicationInfoManager
+                2) ApplicationInfoManager会对配置进行管理
          */
         ApplicationInfoManager applicationInfoManager = null;
-
+        /*
+        第三步 : 初始化eureka-server内部的eureka-client
+                用来跟其他eureka节点注册和通信
+         */
         if (eurekaClient == null) {
+            /*
+              eureka通信的时候,会判断是否为云环境
+             */
             EurekaInstanceConfig instanceConfig = isCloud(ConfigurationManager.getDeploymentContext())
                     ? new CloudInstanceConfig()
                     : new MyDataCenterInstanceConfig();

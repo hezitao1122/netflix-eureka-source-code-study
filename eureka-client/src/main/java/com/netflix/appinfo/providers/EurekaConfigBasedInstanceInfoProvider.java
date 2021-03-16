@@ -44,6 +44,9 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
 
     @Override
     public synchronized InstanceInfo get() {
+        /*
+          初始化InstanceInfo
+         */
         if (instanceInfo == null) {
             // Build the lease information to be passed to the server based on config
             LeaseInfo.Builder leaseInfoBuilder = LeaseInfo.Builder.newBuilder()
@@ -53,8 +56,9 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
             if (vipAddressResolver == null) {
                 vipAddressResolver = new Archaius1VipAddressResolver();
             }
-
-            // Builder the instance information to be registered with eureka server
+            /*Builder the instance information to be registered with eureka server
+                通过构造器模式,拿到一个构造器
+             */
             InstanceInfo.Builder builder = InstanceInfo.Builder.newBuilder(vipAddressResolver);
 
             // set the appropriate id for the InstanceInfo, falling back to datacenter Id if applicable, else hostname
@@ -80,7 +84,9 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
             if (defaultAddress == null || defaultAddress.isEmpty()) {
                 defaultAddress = config.getIpAddress();
             }
-
+            /*
+                用构造器模式,从传进来的config对象中取参数,完成整个InstanceInfo的构造
+             */
             builder.setNamespace(config.getNamespace())
                     .setInstanceId(instanceId)
                     .setAppName(config.getAppname())
@@ -123,6 +129,9 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
             }
 
             instanceInfo = builder.build();
+            /*
+                这里设置了一个租约相关的信息
+             */
             instanceInfo.setLeaseInfo(leaseInfoBuilder.build());
         }
         return instanceInfo;
