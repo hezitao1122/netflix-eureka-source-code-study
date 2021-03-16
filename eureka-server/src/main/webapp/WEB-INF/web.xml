@@ -8,24 +8,31 @@
     <listener-class>com.netflix.eureka.EurekaBootStrap</listener-class>
   </listener>
 
+
+  <!--  负责状态处理逻辑的filter -->
   <filter>
     <filter-name>statusFilter</filter-name>
     <filter-class>com.netflix.eureka.StatusFilter</filter-class>
   </filter>
 
+  <!-- 对请求进行授权认证 -->
   <filter>
     <filter-name>requestAuthFilter</filter-name>
     <filter-class>com.netflix.eureka.ServerRequestAuthFilter</filter-class>
   </filter>
+  <!-- 限流相关逻辑 -->
   <filter>
     <filter-name>rateLimitingFilter</filter-name>
     <filter-class>com.netflix.eureka.RateLimitingFilter</filter-class>
   </filter>
+  <!-- 压缩编码相关 -->
   <filter>
     <filter-name>gzipEncodingEnforcingFilter</filter-name>
     <filter-class>com.netflix.eureka.GzipEncodingEnforcingFilter</filter-class>
   </filter>
 
+  <!-- 1. jersey框架的servlet的配置 -->
+  <!-- 2. jersey这个框架的ServletContainer是一个是一个核心filter,接收所有请求作为请求入口 -->
   <filter>
     <filter-name>jersey</filter-name>
     <filter-class>com.sun.jersey.spi.container.servlet.ServletContainer</filter-class>

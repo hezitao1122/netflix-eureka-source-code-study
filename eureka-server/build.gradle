@@ -1,10 +1,21 @@
 apply plugin: 'war'
-
+//声明了eureka-server依赖
 dependencies {
+    //客户端,代表其有注册功能
     compile project(':eureka-client')
+    /*
+    1.接受别人的服务注册请求
+    2.服务发现功能
+    3.提供发现功能
+    4.保持心跳
+    5.故障摘除
+     */
     compile project(':eureka-core')
+    //1. 实现restful请求的一个框架
+    //2. server和client进行通信,都是通过此框架进行http请求通信
     compile "com.sun.jersey:jersey-server:$jerseyVersion"
     compile "com.sun.jersey:jersey-servlet:$jerseyVersion"
+    // 1.日志框架
     compile 'org.slf4j:slf4j-log4j12:1.6.1'
     compile 'org.glassfish.jaxb:jaxb-runtime:2.3.3'
 
@@ -13,8 +24,11 @@ dependencies {
 
     providedCompile "javax.servlet:servlet-api:$servletVersion"
 
+    //1.单元测试框架，提供单元测试
     testCompile project(':eureka-test-utils')
     testCompile "org.mockito:mockito-core:${mockitoVersion}"
+    // 1.方便测试，测试的时候是基于jetty直接将eureka server作为一个web应用给跑起来
+    // 2.跑起来之后，eureka server即活在这个web容器之中，然后再基于jersey暴露一些restful接口
     testCompile "org.eclipse.jetty:jetty-server:$jetty_version"
     testCompile "org.eclipse.jetty:jetty-webapp:$jetty_version"
 }
