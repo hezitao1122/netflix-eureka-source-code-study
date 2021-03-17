@@ -223,8 +223,26 @@ public class EurekaBootStrap implements ServletContextListener {
          */
         ApplicationInfoManager applicationInfoManager = null;
         /*
-        第三步 : 初始化eureka-server内部的eureka-client
-                用来跟其他eureka节点注册和通信
+        第三步 : 初始化内部的eureka-client
+            1. DefaultEurekaClientConfig
+                1) 同上,提供内部API调用接口,通过EurekaClientConfig服务
+                2) 同上,也包含了许多的默认配置
+                3) 主要包含的是一些client的配置项
+            2. DiscoveryClient
+                1) 通过第二步构建的ApplicationInfoManager和DefaultEurekaClientConfig配置构建DiscoveryClient对象
+                2) 读取EurekaClientConfig，包括TransportConfig
+                3) 保存EurekaInstanceConfig和InstanceInfo
+                4) 初始化支持调度的线程池
+                5) 初始化支持心跳的线程池
+                6) 初始化支持缓存刷新的线程池
+                7) 初始化EurekaTransport，支持底层的eureka client跟eureka server进行网络通信的组件，
+                   对网络通信组件进行了一些初始化的操作
+                8) 如果要抓取注册表的话，在这里就会去抓取注册表了，但是如果说你配置了不抓取，那么这里就不抓取了
+                9) 初始化调度任务：如果要抓取注册表的话，就会注册一个定时任务，按照你设定的那个抓取的间隔，每隔一定时间（默认是30s），
+                   去执行一个CacheRefreshThread，给放那个调度线程池里去了；如果要向eureka server进行注册的话，
+                   会搞一个定时任务，每隔一定时间发送心跳，执行一个HeartbeatThread；
+                   创建了服务实例副本传播器，将自己作为一个定时任务进行调度；创建了服务实例的状态变更的监听器，
+                   如果你配置了监听，那么就会注册监听器
          */
         if (eurekaClient == null) {
             /*

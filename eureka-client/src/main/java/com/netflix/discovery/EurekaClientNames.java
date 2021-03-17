@@ -18,6 +18,7 @@ package com.netflix.discovery;
 
 /**
  * @author Tomasz Bak
+ * 提供命名空间的枚举
  */
 public final class EurekaClientNames {
 
