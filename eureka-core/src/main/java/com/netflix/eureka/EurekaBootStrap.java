@@ -162,18 +162,90 @@ public class EurekaBootStrap implements ServletContextListener {
 
     /**
      * init hook for server context. Override for custom logic.
-     * 第一步: 这里会先去加载properties文件中的配置
-     * 第二步:
-     * 第三步: 初始化eureka-server内部的eureka-client 用来跟其他eureka节点注册和通信
-     * 第四步: 处理注册相关的事情
-     * 第五步 : 处理peer节点相关的数据
-     * 第六步: eureka-server的上下文构建
-     * 第七步: 处理一些善后的事情,从相邻的eureka节点拷贝的注册信息
-     * 第八步: 处理一些善后的事情,注册所有的监控
+     * 第一步  获取配置项,初始化EurekaServerConfig
+     *             1.EurekaServerConfig这个类,相当于是一个Map,是专门提供eureka-server   配置项的API方法. 适合一些更新没那么频繁的项目
+     *             2. new DefaultEurekaServerConfig().init()配置项的加载
+     *                  1) EUREKA_PROPS_FILE    对应要加载的配置文件的名称
+     *                     默认是eureka-server
+     *                 2) ConfigurationManager
+     *                    （1）.把这个配置文件的名称传过去,
+     *                    （2）.然后拼上后缀(properties) ，
+     *                     (3) .并读取加载进成一个properties对象
+     *                     (4) .然后根据文件名为key , 将加载出来的properties对象放到单例            的配置管理中去
+     *                 3).此时ConfigurationManager中即有了各个配置项
+     *                 4).DefaultEurekaServerConfig方法提供配置API,都是通过硬编码配置项      的名称
+     *                 5)如果没有配置,则全部进行默认值的加载,从DynamicPropertyFactory中      获取配置
+     * 第二步 : 初始化ApplicationInfoManager
+     *             1. ApplicationInfo
+     *                 1). 相当于每一个ApplicationInfo就相当于一个eureka client
+     *             2. EurekaInstanceConfig
+     *                 1) 将eureka-client.properties文件中的配置项加载进ConfigurationManager之中
+     *                 2) 基于EurekaInstanceConfig来对配置项API进行暴露
+     *                 3) EurekaInstanceConfig之中会提供一些默认值的硬编码存储
+     *                 4) 存储的数据为: 例如
+     *                     InstanceId\Appname等
+     *             3. Eureka Server
+     *                 1) Eureka Server自己也是一个Eureka Client
+     *                 2) 会将自己作为一个Eureka Client把自己当成一个服务
+     *                 3) 将自己注册到其他的Eureka Server上,组成集群
+     *                 4) 所以Eureka Server也是有Application \ Instance这些概念
+     *              4.EurekaConfigBasedInstanceInfoProvider
+     *                 1) 这里会传入一个上述读取出来的 EurekaInstanceConfig配置类
+     *                 2) 通过构造器模式,从传进来的config对象中取参数,完成整个InstanceInfo的构造.拿到一个静态内部类的对象
+     *                 3) 给InstanceInfo设置一个租约信息
+     *               5.ApplicationInfoManager
+     *                 1) 直接通过InstanceInfo和EurekaInstanceConfig对象,构建一个ApplicationInfoManager
+     *                 2) ApplicationInfoManager会对配置进行管理
+     * 第二步 : 初始化ApplicationInfoManager
+     *             1. ApplicationInfo
+     *                 1). 相当于每一个ApplicationInfo就相当于一个eureka client
+     *             2. EurekaInstanceConfig
+     *                 1) 将eureka-client.properties文件中的配置项加载进ConfigurationManager之中
+     *                 2) 基于EurekaInstanceConfig来对配置项API进行暴露
+     *                 3) EurekaInstanceConfig之中会提供一些默认值的硬编码存储
+     *                 4) 存储的数据为: 例如
+     *                     InstanceId\Appname等
+     *             3. Eureka Server
+     *                 1) Eureka Server自己也是一个Eureka Client
+     *                 2) 会将自己作为一个Eureka Client把自己当成一个服务
+     *                 3) 将自己注册到其他的Eureka Server上,组成集群
+     *                 4) 所以Eureka Server也是有Application \ Instance这些概念
+     *              4.EurekaConfigBasedInstanceInfoProvider
+     *                 1) 这里会传入一个上述读取出来的 EurekaInstanceConfig配置类
+     *                 2) 通过构造器模式,从传进来的config对象中取参数,完成整个InstanceInfo的构造.拿到一个静态内部类的对象
+     *                 3) 给InstanceInfo设置一个租约信息
+     *               5.ApplicationInfoManager
+     *                 1) 直接通过InstanceInfo和EurekaInstanceConfig对象,构建一个ApplicationInfoManager
+     *                 2) ApplicationInfoManager会对配置进行管理
+     * 第四步: 处理注册相关的事情 构建PeerAwareInstanceRegistry
+     *             1.PeerAwareInstanceRegistry 可以识别Eureka的实例注册表信息
+     *               1) EurekaClient的注册表
+     *             2. 如果不是Aws云服务,则初始化一个PeerAwareInstanceRegistryImpl对象 ,则进行以下逻辑
+     *                 1) PeerAwareInstanceRegistryImpl的父类是AbstractInstanceRegistry
+     *                 2) 初始化一些对象和队列信息
+     *                 3) recentCanceledQueue  保存最近被摘除的实例
+     *                 4) recentRegisteredQueue 保存最近被注册的实例
+     *                 5) renewsLastMin 最后一分钟进行服务续约的东西
+     *                 6) numberOfReplicationsLastMin 最后一分钟初始化的实例
+     * 第五步 : 构建PeerEurekaNodes,eureka server的集群数据
+     *           1. PeerEurekaNodes代表了一个eureka server集群
+     *           2. 这是一个EurekaServer的注册表
+     * 第六步: 构建eureka-server的上下文
+     *           1. eureka-server的上下文构建,将上面构建好的东西,都一起来构造一个EurekaServerContext
+     *             1). 代表了服务器的上下文,包含了当前EurekaServer的所有东西
+     *             2). 如果以后谁要使用上下文,直接从这获取即可
+     * 第七步: 初始化eureka-server的上下文
+     *           1. serverContext.initialize()
+     *             1) peerEurekaNodes.start 将Eureka更新集群
+     *             2) registry.init() 基于EurekaServer集群的信息,来初始化注册表
+     * 第八步: 处理一些善后的事情,从相邻的eureka节点拷贝的注册信息
+     *           1. registry.syncUp()
+     *             1) 从相邻的一个EurekaServer节点拷贝注册表的信息
+     * 第九步: 处理一些善后的事情,注册所有的监控
      */
     protected void initEurekaServerContext() throws Exception {
         /*
-        第一步  获取配置项的代码阅读
+        第一步  获取配置项,初始化EurekaServerConfig
             1.EurekaServerConfig这个类,相当于是一个Map,是专门提供eureka-server   配置项的API方法. 适合一些更新没那么频繁的项目
             2. new DefaultEurekaServerConfig().init()配置项的加载
                  1) EUREKA_PROPS_FILE    对应要加载的配置文件的名称
@@ -199,7 +271,7 @@ public class EurekaBootStrap implements ServletContextListener {
 
 
         /*
-         第二步 : 初始化
+         第二步 : 初始化ApplicationInfoManager
             1. ApplicationInfo
                 1). 相当于每一个ApplicationInfo就相当于一个eureka client
             2. EurekaInstanceConfig
@@ -223,12 +295,12 @@ public class EurekaBootStrap implements ServletContextListener {
          */
         ApplicationInfoManager applicationInfoManager = null;
         /*
-        第三步 : 初始化内部的eureka-client
-            1. DefaultEurekaClientConfig
+        第三步 : 初始化内部的EurekaClient
+            1. DefaultEurekaClientConfig 构建
                 1) 同上,提供内部API调用接口,通过EurekaClientConfig服务
                 2) 同上,也包含了许多的默认配置
                 3) 主要包含的是一些client的配置项
-            2. DiscoveryClient
+            2. DiscoveryClient 构建
                 1) 通过第二步构建的ApplicationInfoManager和DefaultEurekaClientConfig配置构建DiscoveryClient对象
                 2) 读取EurekaClientConfig，包括TransportConfig
                 3) 保存EurekaInstanceConfig和InstanceInfo
@@ -263,7 +335,7 @@ public class EurekaBootStrap implements ServletContextListener {
 
 
         /*
-            第四步: 处理注册相关的事情
+            第四步: 处理注册相关的事情 构建PeerAwareInstanceRegistry
             1.PeerAwareInstanceRegistry 可以识别Eureka的实例注册表信息
               1) EurekaClient的注册表
             2. 如果不是Aws云服务,则初始化一个PeerAwareInstanceRegistryImpl对象 ,则进行以下逻辑
@@ -296,8 +368,9 @@ public class EurekaBootStrap implements ServletContextListener {
             );
         }
         /*
-         * 第四步 : peer节点相关的数据
-         * 1. PeerEurekaNodes代表了一个eureka server集群
+          第五步 : 构建PeerEurekaNodes,eureka server的集群数据
+          1. PeerEurekaNodes代表了一个eureka server集群
+          2. 这是一个EurekaServer的注册表
          */
         PeerEurekaNodes peerEurekaNodes = getPeerEurekaNodes(
                 registry,
@@ -307,14 +380,10 @@ public class EurekaBootStrap implements ServletContextListener {
                 applicationInfoManager
         );
         /*
-         * 第五步:
-         * 1. eureka-server的上下文构建,将上面构建好的东西,都一起来构造一个EurekaServerContext
-         *   1). 代表了服务器的上下文,包含了当前EurekaServer的所有东西
-         *   2). 如果以后谁要使用上下文,直接从这获取即可
-         * 2. serverContext.initialize()
-         *   1) peerEurekaNodes.start 将Eureka集群启动起来
-         *   2) registry.init() 基于EurekaServer集群的信息,来初始化注册表
-         *   3) registry.syncUp() 从相邻的一个EurekaServer节点拷贝注册表的信息
+          第六步: 构建eureka-server的上下文
+          1. eureka-server的上下文构建,将上面构建好的东西,都一起来构造一个EurekaServerContext
+            1). 代表了服务器的上下文,包含了当前EurekaServer的所有东西
+            2). 如果以后谁要使用上下文,直接从这获取即可
          */
         serverContext = new DefaultEurekaServerContext(
                 eurekaServerConfig,
@@ -325,17 +394,24 @@ public class EurekaBootStrap implements ServletContextListener {
         );
 
         EurekaServerContextHolder.initialize(serverContext);
-
+        /*
+          第七步: 初始化eureka-server的上下文
+          1. serverContext.initialize()
+            1) peerEurekaNodes.start 将Eureka更新集群
+            2) registry.init() 基于EurekaServer集群的信息,来初始化注册表
+         */
         serverContext.initialize();
         logger.info("Initialized server context");
         /*
-            第六步: 处理一些善后的事情,从相邻的eureka节点拷贝的注册信息
+          第八步: 处理一些善后的事情,从相邻的eureka节点拷贝的注册信息
+          1. registry.syncUp()
+            1) 从相邻的一个EurekaServer节点拷贝注册表的信息
          */
         // Copy registry from neighboring eureka node
         int registryCount = registry.syncUp();
         registry.openForTraffic(applicationInfoManager, registryCount);
         /*
-            第七步: 处理一些善后的事情,注册所有的监控
+         * 第九步: 处理一些善后的事情,注册所有的监控
          */
         // Register all monitoring statistics.
         EurekaMonitors.registerAllStats();
