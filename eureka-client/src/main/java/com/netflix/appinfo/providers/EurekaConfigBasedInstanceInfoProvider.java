@@ -42,6 +42,16 @@ public class EurekaConfigBasedInstanceInfoProvider implements Provider<InstanceI
         this.config = config;
     }
 
+    /** description: InstanceInfo对象的初始化与构造
+     * 1. 初始化InstanceInfo
+     * 2. 通过构造器模式,拿到一个构造器
+     * 3. 从传进来的config对象中取参数,完成整个InstanceInfo的构造
+     * 4. 设置了一个租约相关的信息
+     * @return: com.netflix.appinfo.InstanceInfo
+     * @Author: zeryts
+     * @email: hezitao@agree.com
+     * @Date: 2021/3/18 6:38
+     */
     @Override
     public synchronized InstanceInfo get() {
         /*

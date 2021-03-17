@@ -127,10 +127,21 @@ public class ExampleEurekaClient {
          * 这是启动server
          */
         injectEurekaConfiguration();
+        /*
+          相当于自己写的普通服务
+         */
         ExampleEurekaClient sampleClient = new ExampleEurekaClient();
 
         // create the client
+        // 这里同EurekaServer 启动的时候一样
+        /*
+          1. 初始化InstanceInfo
+          2. 通过构造器模式,拿到一个构造器
+          3. 从传进来的config对象中取参数,完成整个InstanceInfo的构造
+          4. 设置了一个租约相关的信息
+         */
         ApplicationInfoManager applicationInfoManager = initializeApplicationInfoManager(new MyDataCenterInstanceConfig());
+
         EurekaClient client = initializeEurekaClient(applicationInfoManager, new DefaultEurekaClientConfig());
 
         // use the client
@@ -153,7 +164,10 @@ public class ExampleEurekaClient {
         System.setProperty("eureka.port", "8080");
         System.setProperty("eureka.preferSameZone", "false");
         System.setProperty("eureka.shouldUseDns", "false");
-        System.setProperty("eureka.shouldFetchRegistry", "false");
+        System.setProperty("eureka.shouldFetchRegistry", "true");
+        /*
+            eureka server的地址
+         */
         System.setProperty("eureka.serviceUrl.defaultZone", myServiceUrl);
         System.setProperty("eureka.serviceUrl.default.defaultZone", myServiceUrl);
         System.setProperty("eureka.awsAccessId", "fake_aws_access_id");

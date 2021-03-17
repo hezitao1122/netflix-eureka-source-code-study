@@ -322,7 +322,22 @@ public class DiscoveryClient implements EurekaClient {
     }
 
 
-    /** description: 初始化DiscoveryClient注册者实例构造方法 , EurekaBootStrap真实调用的类
+    /** description: 初始化DiscoveryClient注册者实例构造方法 , EurekaBootStrap真实调用的类,相当于是用于构造一个EurekaClient,不管EurekaClient或是EurekaServer都会进行调用
+     * 1. 初始化检查和监听
+     * 2. EurekaClient注册相关信息InstanceInfo实例的构建
+     * 3. 构建服务实例
+     * 4. 抓取注册表相关信息
+     * 5. 注册EurekaClient实例
+     * 6. 构建了一个支持定时调度的线程池scheduler
+     * 7. 构建了一个心跳机制的线程池heartbeatExecutor
+     * 8. 构建了一个缓存刷新缓存的线程池cacheRefreshExecutor
+     * 9. 构建一个EurekaClient和EurekaServer进行网络通信的组件EurekaTransport
+     * 10. 初始化网络请求组件和调度任务
+     * 11. 启动一堆调度任务
+     *     1) 定时抓取调度表的注册任务
+     *     2) 给EurekaServer定时发送心跳的调度任务
+     *     3) 进行服务实例信息复制的调度任务
+     *     4) 注册了状态变更的监听器
      * @param applicationInfoManager ApplicationInfoManager类,通过InstanceInfo和EurekaInstanceConfig对象构造的配置类,对Client的配置进行管理
      * @param config 具体实现是DefaultEurekaClientConfig , 有namespace (管理命名空间) \ transportConfig (管理传输协议) \ configInstance()等信息
      * @param args 从EurekaBootStrap类进来的话,应该是为null
@@ -359,7 +374,7 @@ public class DiscoveryClient implements EurekaClient {
          */
         InstanceInfo myInfo = applicationInfoManager.getInfo();
         /*
-         *  刚刚构建的配置信息
+         *   刚刚构建的配置信息
          */
         clientConfig = config;
         staticClientConfig = clientConfig;
@@ -435,7 +450,7 @@ public class DiscoveryClient implements EurekaClient {
         try {
             // default size of 2 - 1 each for heartbeat and cacheRefresh
             /*
-             * 构建了一个支持定时调度的线程池
+             * 构建了一个支持定时调度的线程池scheduler
              */
             scheduler = Executors.newScheduledThreadPool(2,
                     new ThreadFactoryBuilder()
@@ -443,7 +458,7 @@ public class DiscoveryClient implements EurekaClient {
                             .setDaemon(true)
                             .build());
             /*
-             * 构建了一个线程池,线程核心数是1
+             * 构建了一个心跳机制的线程池heartbeatExecutor
              */
             heartbeatExecutor = new ThreadPoolExecutor(
                     1, clientConfig.getHeartbeatExecutorThreadPoolSize(), 0, TimeUnit.SECONDS,
@@ -454,7 +469,7 @@ public class DiscoveryClient implements EurekaClient {
                             .build()
             );  // use direct handoff
             /*
-             * 构建了一个刷新缓存的线程池
+             * 构建了一个缓存刷新缓存的线程池cacheRefreshExecutor
              */
             cacheRefreshExecutor = new ThreadPoolExecutor(
                     1, clientConfig.getCacheRefreshExecutorThreadPoolSize(), 0, TimeUnit.SECONDS,
@@ -466,11 +481,11 @@ public class DiscoveryClient implements EurekaClient {
             );  // use direct handoff
 
             /*
-             * 构建一个EurekaClient和EurekaServer进行网络通信的组件
+             * 构建一个EurekaClient和EurekaServer进行网络通信的组件EurekaTransport
              */
             eurekaTransport = new EurekaTransport();
             /*
-             * 做一些初始化操作
+             * 初始化网络请求组件和调度任务
              */
             scheduleServerEndpointTask(eurekaTransport, args);
 
@@ -507,6 +522,9 @@ public class DiscoveryClient implements EurekaClient {
                     backupFetchRegistryResult = false;
                     logger.info("Initial registry fetch from backup servers failed");
                 }
+                /*
+                  还失败了,抛异常
+                 */
                 if (!primaryFetchRegistryResult && !backupFetchRegistryResult && clientConfig.shouldEnforceFetchRegistryAtInit()) {
                     throw new IllegalStateException("Fetch registry error at startup. Initial fetch failed.");
                 }
@@ -534,7 +552,11 @@ public class DiscoveryClient implements EurekaClient {
 
         // finally, init the schedule tasks (e.g. cluster resolvers, heartbeat, instanceInfo replicator, fetch
         /*
-         * 初始化调度任务
+         * initScheduledTasks() 启动一堆调度任务
+         * 1) 定时抓取调度表的注册任务
+         * 2) 给EurekaServer定时发送心跳的调度任务
+         * 3) 进行服务实例信息复制的调度任务
+         * 4) 注册了状态变更的监听器
          */
         initScheduledTasks();
 
@@ -1449,7 +1471,7 @@ public class DiscoveryClient implements EurekaClient {
                 }
             };
             /*
-             * 如果配置了监听,则会配置监听器
+             * 如果配置了监听,则会配置监听器 , 服务状态实例变更的监听器
              */
             if (clientConfig.shouldOnDemandUpdateStatusChange()) {
                 applicationInfoManager.registerStatusChangeListener(statusChangeListener);
