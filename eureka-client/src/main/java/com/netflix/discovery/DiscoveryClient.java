@@ -338,6 +338,17 @@ public class DiscoveryClient implements EurekaClient {
      *     2) 给EurekaServer定时发送心跳的调度任务
      *     3) 进行服务实例信息复制的调度任务
      *     4) 注册了状态变更的监听器
+     *
+     * 槽点:
+     *  1. 服务注册,不应该放在InstanceInfoReplicator方法之中,语义不明朗
+     *  2. 负责发送请求的HttpClient,类体系过于复杂,导致人根本找不到对应的client
+     *      其实是在AbstractJersey2EurekaHttpClient
+     *
+     * 核心机制
+     *  1. EurekaClient的服务注册是在 InstanceInfoReplicator 之中
+     *  2. 实际发送HTTP请求是在AbstractJersey2EurekaHttpClient之中
+     *
+     *
      * @param applicationInfoManager ApplicationInfoManager类,通过InstanceInfo和EurekaInstanceConfig对象构造的配置类,对Client的配置进行管理
      * @param config 具体实现是DefaultEurekaClientConfig , 有namespace (管理命名空间) \ transportConfig (管理传输协议) \ configInstance()等信息
      * @param args 从EurekaBootStrap类进来的话,应该是为null
@@ -647,7 +658,7 @@ public class DiscoveryClient implements EurekaClient {
                 endpointRandomizer
         );
         /*
-         *  注册请求走这里
+         *  注册请求走这里,来初始化EurekaTransport
          */
         if (clientConfig.shouldRegisterWithEureka()) {
             EurekaHttpClientFactory newRegistrationClientFactory = null;
@@ -969,10 +980,15 @@ public class DiscoveryClient implements EurekaClient {
         return null;
     }
 
-    /**
-     * Register with the eureka service by making the appropriate REST call.
+    /** description:  Register with the eureka service by making the appropriate REST call.
+     * 1. 这里找的是EurekaTransport
+     * @return: boolean
+     * @Author: zeryts
+     * @email: hezitao@agree.com
+     * @Date: 2021/3/18 7:33
      */
     boolean register() throws Throwable {
+
         logger.info(PREFIX + "{}: registering service...", appPathIdentifier);
         EurekaHttpResponse<Void> httpResponse;
         try {
@@ -1450,7 +1466,9 @@ public class DiscoveryClient implements EurekaClient {
 
             // InstanceInfo replicator
             /*
-             * 副本机制
+             * 副本机制,复制的概念
+             * 本意 : replicate 即将数据放到多个副本上去
+             * 这里的意思: 将EurekaClient的一个副本放到EurekaServer中去
              */
             instanceInfoReplicator = new InstanceInfoReplicator(
                     this,
@@ -1553,7 +1571,15 @@ public class DiscoveryClient implements EurekaClient {
      * isDirty flag on the instanceInfo is set to true
      */
     void refreshInstanceInfo() {
+        /*
+         * 1.拿到主机名和地址
+         * 2.如果主机名和地址发生了改变
+         * 3.关键配置是否改变,改变了的情况下,刷新一下
+         */
         applicationInfoManager.refreshDataCenterInfoIfRequired();
+        /*
+            刷新服务实例的状态,然后设置服务实例的状态到applicationInfoManager中
+         */
         applicationInfoManager.refreshLeaseInfoIfRequired();
 
         InstanceStatus status;

@@ -59,10 +59,17 @@ class InstanceInfoReplicator implements Runnable {
         this.allowedRatePerMinute = 60 * this.burstSize / this.replicationIntervalSeconds;
         logger.info("InstanceInfoReplicator onDemand update allowed rate per min is {}", allowedRatePerMinute);
     }
-
+    /** description:
+     * 1. 有一个future调度线程池, 让自己40s之后才去执行自己的调度任务
+     * 2. 执行的是自己的run方法
+     * @Author: zeryts
+     * @email: hezitao@agree.com
+     * @Date: 2021/3/18 7:23
+     */
     public void start(int initialDelayMs) {
         if (started.compareAndSet(false, true)) {
             instanceInfo.setIsDirty();  // for initial register
+            // 这里,有一个future调度线程池, 让自己40s之后才去执行自己的调度任务
             Future next = scheduler.schedule(this, initialDelayMs, TimeUnit.SECONDS);
             scheduledPeriodicRef.set(next);
         }
@@ -111,13 +118,28 @@ class InstanceInfoReplicator implements Runnable {
             return false;
         }
     }
-
+    /** description:
+     * 1. 刷新了服务实例的信息
+     *
+     * @Author: zeryts
+     * @email: hezitao@agree.com
+     * @Date: 2021/3/18 7:24
+     */
     public void run() {
-        try {
-            discoveryClient.refreshInstanceInfo();
 
+        try {
+            //刷新了服务实例的信息
+            discoveryClient.refreshInstanceInfo();
+            /*
+              这里在之前把isDirty设置为true
+              并把值设置为当前时间戳
+             */
             Long dirtyTimestamp = instanceInfo.isDirtyWithTime();
             if (dirtyTimestamp != null) {
+                /*
+                 这里是进行注册的方法 , 发送了一个http的请求 , 然后返回 返回码是否为204的判断
+                 通过EurekaTransport进行发送
+                 */
                 discoveryClient.register();
                 instanceInfo.unsetIsDirty(dirtyTimestamp);
             }

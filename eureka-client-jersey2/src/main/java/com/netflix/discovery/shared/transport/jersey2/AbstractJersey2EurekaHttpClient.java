@@ -49,6 +49,8 @@ import static com.netflix.discovery.shared.transport.EurekaHttpResponse.anEureka
 
 /**
  * @author Tomasz Bak
+ * 这里是EurekaClient进行请求服务发送的封装类
+ * 基于jersey
  */
 public abstract class AbstractJersey2EurekaHttpClient implements EurekaHttpClient {
 
@@ -86,12 +88,21 @@ public abstract class AbstractJersey2EurekaHttpClient implements EurekaHttpClien
         String urlPath = "apps/" + info.getAppName();
         Response response = null;
         try {
+                    /*
+            这里是向其他eureka发送请求
+            serviceUrl + urlPath
+            然后走restful风格
+         */
             Builder resourceBuilder = jerseyClient.target(serviceUrl).path(urlPath).request();
             addExtraProperties(resourceBuilder);
             addExtraHeaders(resourceBuilder);
             response = resourceBuilder
                     .accept(MediaType.APPLICATION_JSON)
                     .acceptEncoding("gzip")
+                    /*
+                        打成一个json
+                        发送post请求
+                     */
                     .post(Entity.json(info));
             return anEurekaHttpResponse(response.getStatus()).headers(headersOf(response)).build();
         } finally {
@@ -127,6 +138,11 @@ public abstract class AbstractJersey2EurekaHttpClient implements EurekaHttpClien
 
     @Override
     public EurekaHttpResponse<InstanceInfo> sendHeartBeat(String appName, String id, InstanceInfo info, InstanceStatus overriddenStatus) {
+        /*
+            这里是向其他eureka发送请求
+            serviceUrl + urlPath
+            然后走restful风格
+         */
         String urlPath = "apps/" + appName + '/' + id;
         Response response = null;
         try {

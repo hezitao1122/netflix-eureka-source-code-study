@@ -195,9 +195,14 @@ public class ApplicationInfoManager {
      * <code>DataCenterInfo</code> is refetched and passed on to the eureka
      * server on next heartbeat.
      *
+     * 1.拿到主机名和地址
+     * 2.如果主机名和地址发生了改变
+     * 3.不一样的情况下,刷新一下
+     *
      * see {@link InstanceInfo#getHostName()} for explanation on why the hostname is used as the default address
      */
     public void refreshDataCenterInfoIfRequired() {
+        //拿到主机名和地址
         String existingAddress = instanceInfo.getHostName();
 
         String existingSpotInstanceAction = null;
@@ -206,6 +211,7 @@ public class ApplicationInfoManager {
         }
 
         String newAddress;
+
         if (config instanceof RefreshableInstanceConfig) {
             // Refresh data center info, and return up to date address
             newAddress = ((RefreshableInstanceConfig) config).resolveDefaultAddress(true);
@@ -218,13 +224,14 @@ public class ApplicationInfoManager {
             logger.warn("The address changed from : {} => {}", existingAddress, newAddress);
             updateInstanceInfo(newAddress, newIp);
         }
-
+        // 如果主机名和地址发生了改变
         if (config.getDataCenterInfo() instanceof AmazonInfo) {
             String newSpotInstanceAction = ((AmazonInfo) config.getDataCenterInfo()).get(AmazonInfo.MetaDataKey.spotInstanceAction);
             if (newSpotInstanceAction != null && !newSpotInstanceAction.equals(existingSpotInstanceAction)) {
                 logger.info(String.format("The spot instance termination action changed from: %s => %s",
                         existingSpotInstanceAction,
                         newSpotInstanceAction));
+                //不一样的情况下,刷新一下
                 updateInstanceInfo(null , null );
             }
         }        
@@ -244,7 +251,11 @@ public class ApplicationInfoManager {
         builder.setDataCenterInfo(config.getDataCenterInfo());
         instanceInfo.setIsDirty();
     }
-
+    /** description: 刷新设置服务实例的状态
+     * @Author: zeryts
+     * @email: hezitao@agree.com
+     * @Date: 2021/3/18 7:27
+     */
     public void refreshLeaseInfoIfRequired() {
         LeaseInfo leaseInfo = instanceInfo.getLeaseInfo();
         if (leaseInfo == null) {
