@@ -296,7 +296,8 @@ public class EurekaBootStrap implements ServletContextListener {
             );
         }
         /*
-         * 第四步 : 处理peer节点相关的数据
+         * 第四步 : peer节点相关的数据
+         * 1. PeerEurekaNodes代表了一个eureka server集群
          */
         PeerEurekaNodes peerEurekaNodes = getPeerEurekaNodes(
                 registry,
@@ -306,7 +307,14 @@ public class EurekaBootStrap implements ServletContextListener {
                 applicationInfoManager
         );
         /*
-         * 第五步: eureka-server的上下文构建
+         * 第五步:
+         * 1. eureka-server的上下文构建,将上面构建好的东西,都一起来构造一个EurekaServerContext
+         *   1). 代表了服务器的上下文,包含了当前EurekaServer的所有东西
+         *   2). 如果以后谁要使用上下文,直接从这获取即可
+         * 2. serverContext.initialize()
+         *   1) peerEurekaNodes.start 将Eureka集群启动起来
+         *   2) registry.init() 基于EurekaServer集群的信息,来初始化注册表
+         *   3) registry.syncUp() 从相邻的一个EurekaServer节点拷贝注册表的信息
          */
         serverContext = new DefaultEurekaServerContext(
                 eurekaServerConfig,

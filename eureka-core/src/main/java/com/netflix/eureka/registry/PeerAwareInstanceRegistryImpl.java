@@ -63,6 +63,9 @@ import javax.inject.Singleton;
 import static com.netflix.eureka.Names.METRIC_REGISTRY_PREFIX;
 
 /**
+ * 如果当前这个Eureka Server在一定时间内,低于一定比例(如有20个服务,在15分钟内只有10个服务未发送心跳)
+ * 则Eureka Server认为自己网络出了故障,在一定时间内不会摘除自己的服务实例
+ *
  * Handles replication of all operations to {@link AbstractInstanceRegistry} to peer
  * <em>Eureka</em> nodes to keep them all in sync.
  *
