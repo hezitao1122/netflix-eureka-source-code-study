@@ -263,11 +263,19 @@ public class EurekaBootStrap implements ServletContextListener {
 
 
         /*
-            第三步:
-
-                处理注册相关的事情
+            第四步: 处理注册相关的事情
+            1.PeerAwareInstanceRegistry 可以识别Eureka的实例注册表信息
+              1) EurekaClient的注册表
+            2. 如果不是Aws云服务,则初始化一个PeerAwareInstanceRegistryImpl对象 ,则进行以下逻辑
+                1) PeerAwareInstanceRegistryImpl的父类是AbstractInstanceRegistry
+                2) 初始化一些对象和队列信息
+                3) recentCanceledQueue  保存最近被摘除的实例
+                4) recentRegisteredQueue 保存最近被注册的实例
+                5) renewsLastMin 最后一分钟进行服务续约的东西
+                6) numberOfReplicationsLastMin 最后一分钟初始化的实例
          */
         PeerAwareInstanceRegistry registry;
+        //是否在Aws云服务上
         if (isAws(applicationInfoManager.getInfo())) {
             registry = new AwsInstanceRegistry(
                     eurekaServerConfig,
@@ -279,9 +287,11 @@ public class EurekaBootStrap implements ServletContextListener {
             awsBinder.start();
         } else {
             registry = new PeerAwareInstanceRegistryImpl(
+                    //传入eurekaServer配置
                     eurekaServerConfig,
                     eurekaClient.getEurekaClientConfig(),
                     serverCodecs,
+                    //传入eurekaClient配置
                     eurekaClient
             );
         }

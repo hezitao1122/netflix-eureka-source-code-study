@@ -125,7 +125,19 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
 
     private Timer timer = new Timer(
             "ReplicaAwareInstanceRegistry - RenewalThresholdUpdater", true);
-
+    /** description: PeerAwareInstanceRegistryImpl的父类是AbstractInstanceRegistry
+     * 初始化一些对象和队列信息
+     * recentCanceledQueue  保存最近被摘除的实例
+     * recentRegisteredQueue 保存最近被注册的实例
+     * renewsLastMin 最后一分钟进行服务续约的东西
+     * numberOfReplicationsLastMin 最后一分钟初始化的实例
+     *
+     * @param serverConfig server的配置
+     * @param clientConfig client的配置
+     * @Author: zeryts
+     * @email: hezitao@agree.com
+     * @Date: 2021/3/17 21:15
+     */
     @Inject
     public PeerAwareInstanceRegistryImpl(
             EurekaServerConfig serverConfig,
@@ -133,6 +145,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
             ServerCodecs serverCodecs,
             EurekaClient eurekaClient
     ) {
+
         super(serverConfig, clientConfig, serverCodecs);
         this.eurekaClient = eurekaClient;
         this.numberOfReplicationsLastMin = new MeasuredRate(1000 * 60 * 1);
