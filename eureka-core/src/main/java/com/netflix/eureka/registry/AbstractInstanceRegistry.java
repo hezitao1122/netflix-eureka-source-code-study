@@ -216,6 +216,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
      * 6. 如果服务实例是启动的状态,设置一下这个服务的租约状态 为UP
      * 7. 设置服务的更新时间
      * 8. 释放锁
+     * 9. 页面获取EurekaServerContext，获取所有的Application，然后遍历到页面进行显示
      数据结构为
     {
     "APPLICATION0":{

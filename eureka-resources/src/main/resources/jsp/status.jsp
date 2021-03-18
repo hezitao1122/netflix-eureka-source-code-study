@@ -49,6 +49,7 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
            <%
            EurekaServerContext serverContext = (EurekaServerContext) pageContext.getServletContext()
                    .getAttribute(EurekaServerContext.class.getName());
+//               页面获取EurekaServerContext，获取所有的Application，然后遍历到页面进行显示
            for(Application app : serverContext.getRegistry().getSortedApplications()) {
                out.print("<tr><td><b>" + app.getName() + "</b></td>");
                Map<String, Integer> amiCounts = new HashMap<String, Integer>();
