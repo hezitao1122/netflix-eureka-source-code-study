@@ -130,6 +130,10 @@ public class ResponseCacheImpl implements ResponseCache {
         this.readWriteCacheMap =
                 CacheBuilder.newBuilder().initialCapacity(serverConfig.getInitialCapacityOfResponseCache())
                         .expireAfterWrite(serverConfig.getResponseCacheAutoExpirationInSeconds(), TimeUnit.SECONDS)
+                        /*
+                          缓存中移除了某一项,就会触发此监听
+                          从而重新去注册表中进行读写缓存的拉取
+                         */
                         .removalListener(new RemovalListener<Key, Value>() {
                             @Override
                             public void onRemoval(RemovalNotification<Key, Value> notification) {
@@ -147,6 +151,7 @@ public class ResponseCacheImpl implements ResponseCache {
                                     Key cloneWithNoRegions = key.cloneWithoutRegions();
                                     regionSpecificKeys.put(cloneWithNoRegions, key);
                                 }
+                                // 这里是抓取注册表
                                 Value value = generatePayload(key);
                                 return value;
                             }
@@ -206,6 +211,7 @@ public class ResponseCacheImpl implements ResponseCache {
      * @return payload which contains information about the applications.
      */
     public String get(final Key key) {
+        // 第二个参数为 : 是否只使用只读缓存配置项
         return get(key, shouldUseReadOnlyResponseCache);
     }
 
@@ -353,11 +359,14 @@ public class ResponseCacheImpl implements ResponseCache {
         Value payload = null;
         try {
             if (useReadOnlyCache) {
+                // 去只读缓存中去读取
                 final Value currentPayload = readOnlyCacheMap.get(key);
                 if (currentPayload != null) {
                     payload = currentPayload;
                 } else {
+                    //如果为空,则去读写缓存中读取
                     payload = readWriteCacheMap.get(key);
+                    //然后将读取到的值写入读写缓存中去
                     readOnlyCacheMap.put(key, payload);
                 }
             } else {
@@ -373,6 +382,9 @@ public class ResponseCacheImpl implements ResponseCache {
      * Generate pay load with both JSON and XML formats for all applications.
      */
     private String getPayLoad(Key key, Applications apps) {
+        /*
+          序列化的组件 序列化成json
+         */
         EncoderWrapper encoderWrapper = serverCodecs.getEncoder(key.getType(), key.getEurekaAccept());
         String result;
         try {
@@ -414,8 +426,9 @@ public class ResponseCacheImpl implements ResponseCache {
             switch (key.getEntityType()) {
                 case Application:
                     boolean isRemoteRegionRequested = key.hasRegions();
-
+                    // 如果是进行所有注册表的一个抓取过程
                     if (ALL_APPS.equals(key.getName())) {
+                        //记录开始时间
                         if (isRemoteRegionRequested) {
                             tracer = serializeAllAppsWithRemoteRegionTimer.start();
                             payload = getPayLoad(key, registry.getApplicationsFromMultipleRegions(key.getRegions()));

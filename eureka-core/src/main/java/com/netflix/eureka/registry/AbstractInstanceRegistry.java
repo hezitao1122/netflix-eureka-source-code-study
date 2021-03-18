@@ -139,9 +139,15 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                 serverConfig.getDeltaRetentionTimerIntervalInMs(),
                 serverConfig.getDeltaRetentionTimerIntervalInMs());
     }
-
+    /** description: 这里是responseCache的初始化,ResponseCache中包含两个Map
+     * 1. readWriteCacheMap
+     * @Author: zeryts
+     * @email: hezitao@agree.com
+     * @Date: 2021/3/19 6:25
+     */
     @Override
     public synchronized void initializedResponseCache() {
+
         if (responseCache == null) {
             responseCache = new ResponseCacheImpl(serverConfig, serverCodecs, this);
         }

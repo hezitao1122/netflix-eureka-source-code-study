@@ -112,6 +112,12 @@ public class ApplicationsResource {
      *
      * @return a response containing information about all {@link com.netflix.discovery.shared.Applications}
      *         from the {@link AbstractInstanceRegistry}.
+     *
+     *
+     * EurekaClient在读取全量注册表的时候,会在多级缓存 中进行读取
+     * 1. 如果只读缓存中存在,则在只读缓存中进行读取
+     * 2. 如果只读缓存中不存在,则去读写缓存中进行读取
+     *
      */
     @GET
     public Response getContainers(@PathParam("version") String version,
@@ -124,6 +130,7 @@ public class ApplicationsResource {
         boolean isRemoteRegionRequested = null != regionsStr && !regionsStr.isEmpty();
         String[] regions = null;
         if (!isRemoteRegionRequested) {
+            // 这里在做计数
             EurekaMonitors.GET_ALL.increment();
         } else {
             regions = regionsStr.toLowerCase().split(",");
@@ -135,6 +142,7 @@ public class ApplicationsResource {
         // restrict access if it is not
         // ready to serve traffic depending on various reasons.
         if (!registry.shouldAllowAccess(isRemoteRegionRequested)) {
+            //代表不能被抓取的逻辑
             return Response.status(Status.FORBIDDEN).build();
         }
         CurrentRequestVersion.set(Version.toEnum(version));

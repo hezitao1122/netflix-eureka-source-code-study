@@ -222,6 +222,9 @@ public abstract class AbstractJersey2EurekaHttpClient implements EurekaHttpClien
 
     @Override
     public EurekaHttpResponse<Applications> getApplications(String... regions) {
+        /*
+            这里,代表去请求apps的那个resource
+         */
         return getApplicationsInternal("apps/", regions);
     }
 

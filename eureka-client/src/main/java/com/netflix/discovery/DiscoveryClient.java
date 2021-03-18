@@ -1230,6 +1230,8 @@ public class DiscoveryClient implements EurekaClient {
         Applications apps = null;
         // 第一次会走这个方法 eurekaTransport.queryClient.getApplications(remoteRegionsRef.get())
         EurekaHttpResponse<Applications> httpResponse = clientConfig.getRegistryRefreshSingleVipAddress() == null
+                // 去applications 的resource进行抓取
+                // 代表发送的是get请求
                 ? eurekaTransport.queryClient.getApplications(remoteRegionsRef.get())
                 : eurekaTransport.queryClient.getVip(clientConfig.getRegistryRefreshSingleVipAddress(), remoteRegionsRef.get());
         if (httpResponse.getStatusCode() == Status.OK.getStatusCode()) {
