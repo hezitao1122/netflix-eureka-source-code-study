@@ -402,6 +402,12 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             recentlyChangedQueue.add(new RecentlyChangedItem(lease));
             // 设置服务的更新时间
             registrant.setLastUpdatedTimestamp();
+
+            /* 主动过期机制
+                1. 服务注册的时候会进行Registry的缓存刷新机制
+                2. 会过期ALL_APPS中的所有的key
+
+             */
             invalidateCache(registrant.getAppName(), registrant.getVIPAddress(), registrant.getSecureVipAddress());
             logger.info("Registered instance {}/{} with status {} (replication={})",
                     registrant.getAppName(), registrant.getId(), registrant.getStatus(), isReplication);

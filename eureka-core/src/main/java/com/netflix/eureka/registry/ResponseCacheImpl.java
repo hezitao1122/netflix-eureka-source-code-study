@@ -119,7 +119,23 @@ public class ResponseCacheImpl implements ResponseCache {
     private final AbstractInstanceRegistry registry;
     private final EurekaServerConfig serverConfig;
     private final ServerCodecs serverCodecs;
-
+    /** description:
+     * 过期策略
+     * 1. ReadWriteCache的主动过期机制
+     *  1). 服务注册的时候会进行Registry的缓存刷新机制
+     *  2). 会过期ALL_APPS中的所有的key
+     * 2. ReadWriteCache的自动过期策略
+     *  1).在间隔 responseCacheAutoExpirationInSeconds 会自动进行注册表缓存的过期 默认是180s
+     * 3.  ReadOnlyCache的被动过期
+     *  1). 每隔responseCacheUpdateIntervalMs 秒 (默认30)
+     *  2). 拿到ReadOnly的map中的值
+     *  3). 拿到ReadWrit的map中的值
+     *  4). 比较两个值是否一致
+     *  5). 如果不一致的情况下,讲ReadWrit中的值同步到ReadOnly中去
+     * @Author: zeryts
+     * @email: hezitao@agree.com
+     * @Date: 2021/3/19 7:12
+     */
     ResponseCacheImpl(EurekaServerConfig serverConfig, ServerCodecs serverCodecs, AbstractInstanceRegistry registry) {
         this.serverConfig = serverConfig;
         this.serverCodecs = serverCodecs;
@@ -129,6 +145,10 @@ public class ResponseCacheImpl implements ResponseCache {
         long responseCacheUpdateIntervalMs = serverConfig.getResponseCacheUpdateIntervalMs();
         this.readWriteCacheMap =
                 CacheBuilder.newBuilder().initialCapacity(serverConfig.getInitialCapacityOfResponseCache())
+                        /*
+                            自动过期策略
+                            在间隔 responseCacheAutoExpirationInSeconds 会自动进行缓存的过期 默认是180s
+                         */
                         .expireAfterWrite(serverConfig.getResponseCacheAutoExpirationInSeconds(), TimeUnit.SECONDS)
                         /*
                           缓存中移除了某一项,就会触发此监听
@@ -158,6 +178,14 @@ public class ResponseCacheImpl implements ResponseCache {
                         });
 
         if (shouldUseReadOnlyResponseCache) {
+            /*
+                readOnlyCache的被动过期
+                每隔responseCacheUpdateIntervalMs 秒 (默认30)
+                1. 拿到ReadOnly的map中的值
+                2. 拿到ReadWrit的map中的值
+                3. 比较两个值是否一致
+                4. 如果不一致的情况下,讲ReadWrit中的值同步到ReadOnly中去
+             */
             timer.schedule(getCacheUpdateTask(),
                     new Date(((System.currentTimeMillis() / responseCacheUpdateIntervalMs) * responseCacheUpdateIntervalMs)
                             + responseCacheUpdateIntervalMs),
