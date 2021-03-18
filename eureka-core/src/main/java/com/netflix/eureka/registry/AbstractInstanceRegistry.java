@@ -77,6 +77,9 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
     private static final Logger logger = LoggerFactory.getLogger(AbstractInstanceRegistry.class);
 
     private static final String[] EMPTY_STR_ARRAY = new String[0];
+    /**
+     * 项目
+     */
     private final ConcurrentHashMap<String, Map<String, Lease<InstanceInfo>>> registry
             = new ConcurrentHashMap<String, Map<String, Lease<InstanceInfo>>>();
     protected Map<String, RemoteRegionRegistry> regionNameVSRemoteRegistry = new HashMap<String, RemoteRegionRegistry>();
@@ -199,12 +202,117 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
      * Registers a new instance with a given duration.
      *
      * @see com.netflix.eureka.lease.LeaseManager#register(java.lang.Object, int, boolean)
+     *
+     * 1. 第一次进行服务注册的时候,首先会加一个读锁,所以可以允许多个服务同时来进行注册
+     * 2. 判断这个AppName是否为第一次来注册
+     *      1). 如果这个AppNamee是不存在的,第一次来进行注册,会创建一个新的gMap(ConcurrentHashMap)
+     *      2). 更新expectedNumberOfClientsSendingRenews值服务实例的个数,这里使用了synchronize锁
+     * 3. 更新lease的最后注册时间
+     * 4. 注册到注册表
+     *      1). 然后构建一个Lease对象
+     *      2). 然后放到lease的map中去,key是i-00000000这个id
+     *      3). 将构建的gMap放到registry注册表之中
+     * 5. 处理服务实例的状态
+     * 6. 如果服务实例是启动的状态,设置一下这个服务的租约状态 为UP
+     * 7. 设置服务的更新时间
+     * 8. 释放锁
+     数据结构为
+    {
+    "APPLICATION0":{
+        "i-00000000":{
+            lease1
+        },
+        "i-00000001":{
+        lease2
+        }
+    }
      */
     public void register(InstanceInfo registrant, int leaseDuration, boolean isReplication) {
+        /*
+          读写锁机制
+         */
         read.lock();
         try {
+
+            /*
+                是一个map
+                {
+                "i-00000000":{
+                    "holder":{
+                        "instanceId":"i-00000000",
+                        "appName":"APPLICATION0",
+                        "appGroupName":"APPLICATION0GROUP",
+                        "ipAddr":"20.0.0.0",
+                        "sid":"na",
+                        "port":8080,
+                        "securePort":8081,
+                        "homePageUrl":"http://instance0.application0.com:8080/homepage",
+                        "statusPageUrl":"http://instance0.application0.com:8080/status",
+                        "healthCheckUrl":"http://instance0.application0.com:8080/healthcheck",
+                        "secureHealthCheckUrl":"https://instance0.application0.com:8081/healthcheck",
+                        "vipAddress":"application0:8080",
+                        "secureVipAddress":"application0:8081",
+                        "statusPageRelativeUrl":"/status",
+                        "statusPageExplicitUrl":"http://instance0.application0.com:8080/status",
+                        "healthCheckRelativeUrl":"/healthcheck",
+                        "healthCheckSecureExplicitUrl":"https://instance0.application0.com:8081/healthcheck",
+                        "vipAddressUnresolved":"application0:8080",
+                        "secureVipAddressUnresolved":"application0:8081",
+                        "healthCheckExplicitUrl":"http://instance0.application0.com:8080/healthcheck",
+                        "countryId":1,
+                        "isSecurePortEnabled":true,
+                        "isUnsecurePortEnabled":true,
+                        "dataCenterInfo":{
+                            "metadata":{
+                                "public-ipv4":"20.0.0.0",
+                                "accountId":"testAccountId",
+                                "local-hostname":"ip-10.00.0.compute.internal",
+                                "public-hostname":"instance0.application0.com",
+                                "instance-id":"i-00000000",
+                                "ipv6":"::FFFF:20.0.0.0",
+                                "local-ipv4":"192.168.0.0",
+                                "instance-type":"m2.xlarge",
+                                "ami-id":"ami-00000000",
+                                "availability-zone":"us-east-1c"
+                            }
+                        },
+                        "hostName":"instance0.application0.com",
+                        "status":"UP",
+                        "overriddenStatus":"UNKNOWN",
+                        "isInstanceInfoDirty":false,
+                        "leaseInfo":{
+                            "renewalIntervalInSecs":5,
+                            "durationInSecs":15,
+                            "registrationTimestamp":1616072590866,
+                            "lastRenewalTimestamp":1616072590871,
+                            "evictionTimestamp":1616072590881,
+                            "serviceUpTimestamp":1616072590861
+                        },
+                        "isCoordinatingDiscoveryServer":true,
+                        "metadata":{
+
+                        },
+                        "lastUpdatedTimestamp":1616072626783,
+                        "lastDirtyTimestamp":1616072590767,
+                        "actionType":"ADDED",
+                        "asgName":"application0ASG",
+                        "version":"unknown"
+                    },
+                    "evictionTimestamp":0,
+                    "registrationTimestamp":1616072626779,
+                    "serviceUpTimestamp":1616072626781,
+                    "lastUpdateTimestamp":1616072626779,
+                    "duration":15000
+                }
+            }
+             */
             Map<String, Lease<InstanceInfo>> gMap = registry.get(registrant.getAppName());
             REGISTER.increment(isReplication);
+            /*
+                如果第一次来注册,这个APPName是不存在的,会创建一个新的map
+                然后放到这个大的registry的map中去,key是AppName
+                registryMap就是保存的注册表
+             */
             if (gMap == null) {
                 final ConcurrentHashMap<String, Lease<InstanceInfo>> gNewMap = new ConcurrentHashMap<String, Lease<InstanceInfo>>();
                 gMap = registry.putIfAbsent(registrant.getAppName(), gNewMap);
@@ -212,6 +320,10 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                     gMap = gNewMap;
                 }
             }
+            /*
+                如果这个AppName进行过注册
+                查询这个服务是否进行过注册
+             */
             Lease<InstanceInfo> existingLease = gMap.get(registrant.getId());
             // Retain the last dirty timestamp without overwriting it, if there is already a lease
             if (existingLease != null && (existingLease.getHolder() != null)) {
@@ -229,20 +341,28 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                 }
             } else {
                 // The lease does not exist and hence it is a new registration
+
                 synchronized (lock) {
                     if (this.expectedNumberOfClientsSendingRenews > 0) {
                         // Since the client wants to register it, increase the number of clients sending renews
+                        // 增加发送更新的客户端数量  并执行更新
                         this.expectedNumberOfClientsSendingRenews = this.expectedNumberOfClientsSendingRenews + 1;
                         updateRenewsPerMinThreshold();
                     }
                 }
                 logger.debug("No previous lease information found; it is new registration");
             }
+            /*
+                如果这个服务实例第一次来进行注册,
+                将服务实例的信息进行简单封装,设置最新的更新时间,放到一个map中去
+                保存到注册服务的队列之中
+            */
             Lease<InstanceInfo> lease = new Lease<InstanceInfo>(registrant, leaseDuration);
             if (existingLease != null) {
                 lease.setServiceUpTimestamp(existingLease.getServiceUpTimestamp());
             }
             gMap.put(registrant.getId(), lease);
+
             recentRegisteredQueue.add(new Pair<Long, String>(
                     System.currentTimeMillis(),
                     registrant.getAppName() + "(" + registrant.getId() + ")"));
@@ -255,6 +375,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                     overriddenInstanceStatusMap.put(registrant.getId(), registrant.getOverriddenStatus());
                 }
             }
+            // 处理服务实例的状态
             InstanceStatus overriddenStatusFromMap = overriddenInstanceStatusMap.get(registrant.getId());
             if (overriddenStatusFromMap != null) {
                 logger.info("Storing overridden status {} from map", overriddenStatusFromMap);
@@ -266,16 +387,19 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             registrant.setStatusWithoutDirty(overriddenInstanceStatus);
 
             // If the lease is registered with UP status, set lease service up timestamp
+            // 如果服务实例是启动的状态,设置一下这个服务的租约状态 为UP
             if (InstanceStatus.UP.equals(registrant.getStatus())) {
                 lease.serviceUp();
             }
             registrant.setActionType(ActionType.ADDED);
             recentlyChangedQueue.add(new RecentlyChangedItem(lease));
+            // 设置服务的更新时间
             registrant.setLastUpdatedTimestamp();
             invalidateCache(registrant.getAppName(), registrant.getVIPAddress(), registrant.getSecureVipAddress());
             logger.info("Registered instance {}/{} with status {} (replication={})",
                     registrant.getAppName(), registrant.getId(), registrant.getStatus(), isReplication);
         } finally {
+            // 释放锁
             read.unlock();
         }
     }

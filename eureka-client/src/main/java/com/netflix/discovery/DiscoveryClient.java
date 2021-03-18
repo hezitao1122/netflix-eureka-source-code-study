@@ -87,7 +87,6 @@ import com.netflix.servo.annotations.DataSourceType;
 import com.netflix.servo.monitor.Counter;
 import com.netflix.servo.monitor.Monitors;
 import com.netflix.servo.monitor.Stopwatch;
-import sun.plugin2.main.server.HeartbeatThread;
 
 /**
  * The class that is instrumental for interactions with <tt>Eureka Server</tt>.

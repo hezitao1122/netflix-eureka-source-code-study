@@ -82,9 +82,29 @@ public class ApplicationResourceTest extends AbstractTester {
         }
     }
 
+    /**
+     * 测试注册一个成功的服务实例
+     * @throws Exception
+     */
     @Test
     public void testGoodRegistration() throws Exception {
+        /*
+            这是模拟生成的一个服务实例,最主要的包含两块内容
+            1. 基本内容
+                1). host主机名
+                2). ipAddr ip地址
+                3). 端口号
+                4). url地址
+            2. lease(租约)
+                1) 保持心跳的间隔时间
+                2) 最近心跳的时间
+                3) 服务注册的时间
+                4) 服务启动的时间
+         */
         InstanceInfo noIdInfo = InstanceInfoGenerator.takeOne();
+        /*
+            1. 大量check的编码逻辑,防御性编程
+         */
         Response response = applicationResource.addInstance(noIdInfo, false+"");
         assertThat(response.getStatus(), is(204));
     }

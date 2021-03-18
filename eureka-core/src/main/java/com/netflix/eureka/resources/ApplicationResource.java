@@ -48,6 +48,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Karthik Ranganathan, Greg Kim
  *
+ * 相当于是一个controller
  */
 @Produces({"application/xml", "application/json"})
 public class ApplicationResource {
@@ -163,6 +164,9 @@ public class ApplicationResource {
         }
 
         // handle cases where clients may be registering with bad DataCenterInfo with missing data
+        /*
+            拿到数据中心
+         */
         DataCenterInfo dataCenterInfo = info.getDataCenterInfo();
         if (dataCenterInfo instanceof UniqueIdentifier) {
             String dataCenterInfoId = ((UniqueIdentifier) dataCenterInfo).getId();
@@ -182,7 +186,11 @@ public class ApplicationResource {
                 }
             }
         }
-
+        /*
+            注册逻辑
+            PeerAwareInstanceRegistry 注册表,包含所有实例的注册信息
+            将服务实例info往注册表进行注册
+         */
         registry.register(info, "true".equals(isReplication));
         return Response.status(204).build();  // 204 to be backwards compatible
     }
