@@ -153,6 +153,9 @@ public class DiscoveryClient implements EurekaClient {
     private final Provider<HealthCheckHandler> healthCheckHandlerProvider;
     private final Provider<HealthCheckCallback> healthCheckCallbackProvider;
     private final PreRegistrationHandler preRegistrationHandler;
+    /*
+        这个是根据AppName当key , Applications当成value存储在map之中
+     */
     private final AtomicReference<Applications> localRegionApps = new AtomicReference<Applications>();
     private final Lock fetchRegistryUpdateLock = new ReentrantLock();
     // monotonically increasing generation counter to ensure stale threads do not reset registry to an older version
@@ -1106,6 +1109,15 @@ public class DiscoveryClient implements EurekaClient {
      * @param forceFullRegistryFetch Forces a full registry fetch.
      *
      * @return true if the registry was fetched
+     *
+     *
+     * 全量抓取注册表,EurekaClient第一次启动的时候,必须从EurekaServer端一次性抓取全量的注册表的信息过来,
+     * 在本地进行缓存,后面的话,每隔30秒从EurekaServer抓取增量的注册表信息,跟本地缓存进行合并,步骤为:
+     * 1. Applications 本地缓存
+     *  1). 先获取本地的Applications缓存
+     *  2). 包含了它自己的所有InstanceInfo服务信息
+     * 2. 调用jersey抓取注册表信息
+     * 3. 抓取成功,设置到localRegionApps注册表之中
      */
     private boolean fetchRegistry(boolean forceFullRegistryFetch) {
         Stopwatch tracer = FETCH_REGISTRY_TIMER.start();
@@ -1115,6 +1127,7 @@ public class DiscoveryClient implements EurekaClient {
             // applications
             Applications applications = getApplications();
 
+            //第一次全量抓取肯定符合这块逻辑
             if (clientConfig.shouldDisableDelta()
                     || (!Strings.isNullOrEmpty(clientConfig.getRegistryRefreshSingleVipAddress()))
                     || forceFullRegistryFetch
@@ -1215,6 +1228,7 @@ public class DiscoveryClient implements EurekaClient {
         logger.info("Getting all instance registry info from the eureka server");
 
         Applications apps = null;
+        // 第一次会走这个方法 eurekaTransport.queryClient.getApplications(remoteRegionsRef.get())
         EurekaHttpResponse<Applications> httpResponse = clientConfig.getRegistryRefreshSingleVipAddress() == null
                 ? eurekaTransport.queryClient.getApplications(remoteRegionsRef.get())
                 : eurekaTransport.queryClient.getVip(clientConfig.getRegistryRefreshSingleVipAddress(), remoteRegionsRef.get());
@@ -1224,8 +1238,10 @@ public class DiscoveryClient implements EurekaClient {
         logger.info("The response status is {}", httpResponse.getStatusCode());
 
         if (apps == null) {
+            //为null则代表抓取失败
             logger.error("The application is null for some reason. Not storing this information");
         } else if (fetchRegistryGeneration.compareAndSet(currentUpdateGeneration, currentUpdateGeneration + 1)) {
+            // 抓取成功,设置到localRegionApps注册表之中
             localRegionApps.set(this.filterAndShuffle(apps));
             logger.debug("Got full registry with apps hashcode {}", apps.getAppsHashCode());
         } else {
@@ -1765,10 +1781,12 @@ public class DiscoveryClient implements EurekaClient {
      * @param apps
      *            The applications that needs to be filtered and shuffled.
      * @return The applications after the filter and the shuffle.
+     * 缓存在自己本地的方法 , 在remoteRegionVsApps
      */
     private Applications filterAndShuffle(Applications apps) {
         if (apps != null) {
             if (isFetchingRemoteRegionRegistries()) {
+                //全量拉取走这里
                 Map<String, Applications> remoteRegionVsApps = new ConcurrentHashMap<String, Applications>();
                 apps.shuffleAndIndexInstances(remoteRegionVsApps, clientConfig, instanceRegionChecker);
                 for (Applications applications : remoteRegionVsApps.values()) {

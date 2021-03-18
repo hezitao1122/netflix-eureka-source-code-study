@@ -65,6 +65,9 @@ import com.thoughtworks.xstream.annotations.XStreamImplicit;
 @JsonRootName("applications")
 public class Applications {
     private static class VipIndexSupport {
+        /*
+            抓取的注册表信息都缓存在这
+         */
         final AbstractQueue<InstanceInfo> instances = new ConcurrentLinkedQueue<>();
         final AtomicLong roundRobinIndex = new AtomicLong(0);
         final AtomicReference<List<InstanceInfo>> vipList = new AtomicReference<List<InstanceInfo>>(Collections.emptyList());
