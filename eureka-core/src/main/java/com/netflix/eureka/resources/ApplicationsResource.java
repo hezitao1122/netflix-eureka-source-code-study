@@ -85,6 +85,9 @@ public class ApplicationsResource {
      *            the unique application identifier (which is the name) of the
      *            application.
      * @return information about a particular application.
+     *
+     *
+     * 心跳机制相关走的是这里
      */
     @Path("{appId}")
     public ApplicationResource getApplicationResource(

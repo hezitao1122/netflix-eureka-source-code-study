@@ -62,16 +62,25 @@ public class Jersey2ReplicationClient extends AbstractJersey2EurekaHttpClient im
         String urlPath = "apps/" + appName + '/' + id;
         Response response = null;
         try {
+            /*
+                这里调用返回的是一个ApplicationResource对象
+             */
             WebTarget webResource = jerseyClient.target(serviceUrl)
                     .path(urlPath)
                     .queryParam("status", info.getStatus().toString())
                     .queryParam("lastDirtyTimestamp", info.getLastDirtyTimestamp().toString());
+
             if (overriddenStatus != null) {
                 webResource = webResource.queryParam("overriddenstatus", overriddenStatus.name());
             }
             Builder requestBuilder = webResource.request();
             addExtraHeaders(requestBuilder);
-            response = requestBuilder.accept(MediaType.APPLICATION_JSON_TYPE).put(Entity.entity("{}", MediaType.APPLICATION_JSON_TYPE)); // Jersey2 refuses to handle PUT with no body
+            // Jersey2 refuses to handle PUT with no body
+            /*
+              然后这里会走一个InstanceInfo的put请求去请求数据
+             */
+            response = requestBuilder.accept(MediaType.APPLICATION_JSON_TYPE)
+                    .put(Entity.entity("{}", MediaType.APPLICATION_JSON_TYPE));
             InstanceInfo infoFromPeer = null;
             if (response.getStatus() == Status.CONFLICT.getStatusCode() && response.hasEntity()) {
                 infoFromPeer = response.readEntity(InstanceInfo.class);

@@ -125,6 +125,8 @@ public class ApplicationResource {
      * @param id
      *            the unique identifier of the instance.
      * @return information about a particular instance.
+     *
+     * 心跳机制会拼接一个{id}所以会走这
      */
     @Path("{id}")
     public InstanceResource getInstanceInfo(@PathParam("id") String id) {

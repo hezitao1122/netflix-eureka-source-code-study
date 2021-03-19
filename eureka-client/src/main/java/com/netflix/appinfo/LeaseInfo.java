@@ -135,6 +135,8 @@ public class LeaseInfo {
          * @param i
          *            the time interval with which the renewals will be renewed.
          * @return the {@link LeaseInfo} builder.
+         *
+         * 设置客户端的心跳时间
          */
         public Builder setRenewalIntervalInSecs(int i) {
             if (i <= 0) {

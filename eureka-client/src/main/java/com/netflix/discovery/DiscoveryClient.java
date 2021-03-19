@@ -1011,6 +1011,7 @@ public class DiscoveryClient implements EurekaClient {
     boolean renew() {
         EurekaHttpResponse<InstanceInfo> httpResponse;
         try {
+            // 发送请求为  http://localhost:8080/v2/apps/appName/id1  调用ApplicationResource的{id}方法,返回一个InstanceResource
             httpResponse = eurekaTransport.registrationClient.sendHeartBeat(instanceInfo.getAppName(), instanceInfo.getId(), instanceInfo, null);
             logger.debug(PREFIX + "{} - Heartbeat status: {}", appPathIdentifier, httpResponse.getStatusCode());
             if (httpResponse.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
@@ -1463,7 +1464,7 @@ public class DiscoveryClient implements EurekaClient {
         if (clientConfig.shouldFetchRegistry()) {
             // registry cache refresh timer
             /*
-             * 拿到发送心跳任务的间隔 , 默认是30s
+             * 拿到缓存刷新的线程  , 默认是30s
              */
             int registryFetchIntervalSeconds = clientConfig.getRegistryFetchIntervalSeconds();
             int expBackOffBound = clientConfig.getCacheRefreshExecutorExponentialBackOffBound();
@@ -1490,13 +1491,31 @@ public class DiscoveryClient implements EurekaClient {
             logger.info("Starting heartbeat executor: " + "renew interval is: {}", renewalIntervalInSecs);
 
             // Heartbeat timer
+            /*
+                心跳机制的定时任务线程
+                1. 初始化 heartbeatTask 调度任务
+                2. 默认每隔30S执行HeartbeatThread的心跳逻辑
+                3. 走/v2/apps/appName/id1的Get方法拿到一个ApplicationResource服务相关的Resource调用它的GET/{id}返回一个InstanceResource的Resource
+                4. 通过InstanceResource走一个PUT请求
+                5. EurekaServer走检查逻辑
+                    1). 走AbstractInstanceRegistry的renew方法
+                    2). 根据AppName去注册表中拿到一个gMap
+                    3). 根据InstanceInfo的ID去拿到一个Lease
+                    4). 检查数据
+                6. EurekaServer走续约逻辑
+                    1). 把这个lease的最后更新时间修改为 now()+DEFAULT_LEASE_DURATION(默认是90s)
+             */
             heartbeatTask = new TimedSupervisorTask(
                     "heartbeat",
                     scheduler,
                     heartbeatExecutor,
+
+                    // 这个默认值是30  即每隔30s进行设置
                     renewalIntervalInSecs,
                     TimeUnit.SECONDS,
                     expBackOffBound,
+
+                    // 执行心跳的逻辑
                     new HeartbeatThread()
             );
             scheduler.schedule(
