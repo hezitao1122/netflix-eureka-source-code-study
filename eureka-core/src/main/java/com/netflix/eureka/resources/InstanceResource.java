@@ -199,6 +199,8 @@ public class InstanceResource {
      *            last timestamp when this instance information was updated.
      * @return response indicating whether the operation was a success or
      *         failure.
+     *
+     *         取消租约走这个方法
      */
     @DELETE
     @Path("status")

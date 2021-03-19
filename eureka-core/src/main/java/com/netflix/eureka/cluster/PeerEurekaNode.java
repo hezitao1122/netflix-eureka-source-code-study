@@ -153,6 +153,9 @@ public class PeerEurekaNode {
      * @param id
      *            the unique identifier of the instance.
      * @throws Exception
+     *
+     *  最终调用的是这个cancel方法,进行服务下线逻辑
+     *
      */
     public void cancel(final String appName, final String id) throws Exception {
         long expiryTime = System.currentTimeMillis() + maxProcessingDelayMs;

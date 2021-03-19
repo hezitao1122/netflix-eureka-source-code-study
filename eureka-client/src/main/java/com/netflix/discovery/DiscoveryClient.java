@@ -1049,19 +1049,41 @@ public class DiscoveryClient implements EurekaClient {
     /**
      * Shuts down Eureka Client. Also sends a deregistration request to the
      * eureka server.
+     *  EurekaClient主动下线
+     *  1. 将自己的状态修改为DOWN
+     *  2. 然后发送给EurekaServer
+     *      1). apps/appName/{id}返回一个InstanceResource , 然后调用InstanceResource的DELETE方法
+     *  3. EurekaServer执行Cancel方法
+     *      1). 执行检查,获取当前lease
+     *      2). 调用lease的cancel方法
+     *          (1). 把evictionTimestamp时间修改为当前时间
+     *      3). 将lease的InstanceInfo的状态修改为DELETED
+     *      4). 将这个lease放到recentlyChangedQueue , 最近改变的queue中
+     *  4. EurekaServer定时任务
+     *      1). 只会拉取最近三分钟有变化的增量注册表
+     *      2). 如果定时任务被关掉,不会有续约操作
+     *      3). 定时任务将不会将本服务实例拉取到注册表中
+     *      4). 其他EurekaClient端也不会对数据进行拉取
+     *  5. 过期读写缓存中的数据
      */
     @PreDestroy
     @Override
     public synchronized void shutdown() {
         if (isShutdown.compareAndSet(false, true)) {
             logger.info("Shutting down DiscoveryClient ...");
-
+            /*
+                关闭监听器
+             */
             if (statusChangeListener != null && applicationInfoManager != null) {
                 applicationInfoManager.unregisterStatusChangeListener(statusChangeListener.getId());
             }
 
             cancelScheduledTasks();
 
+            /*
+
+
+             */
             // If APPINFO was registered
             if (applicationInfoManager != null
                     && clientConfig.shouldRegisterWithEureka()
@@ -1069,11 +1091,15 @@ public class DiscoveryClient implements EurekaClient {
                 applicationInfoManager.setInstanceStatus(InstanceStatus.DOWN);
                 unregister();
             }
-
+            /*
+                关闭网络组建
+             */
             if (eurekaTransport != null) {
                 eurekaTransport.shutdown();
             }
-
+            /*
+                关闭所有监听器
+             */
             heartbeatStalenessMonitor.shutdown();
             registryStalenessMonitor.shutdown();
 

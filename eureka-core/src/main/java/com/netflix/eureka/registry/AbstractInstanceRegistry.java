@@ -444,6 +444,9 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
      */
     protected boolean internalCancel(String appName, String id, boolean isReplication) {
         read.lock();
+        /*
+            先找lease
+         */
         try {
             CANCEL.increment(isReplication);
             Map<String, Lease<InstanceInfo>> gMap = registry.get(appName);
@@ -461,6 +464,12 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                 logger.warn("DS: Registry: cancel failed because Lease is not registered for: {}/{}", appName, id);
                 return false;
             } else {
+                /*
+                    调用lease的cancel方法
+                    1). 把evictionTimestamp时间修改为当前时间
+                    2). 将lease的InstanceInfo的状态修改为DELETED
+                    3). 将这个lease放到recentlyChangedQueue , 最近改变的queue中
+                 */
                 leaseToCancel.cancel();
                 InstanceInfo instanceInfo = leaseToCancel.getHolder();
                 String vip = null;
