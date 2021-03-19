@@ -1130,8 +1130,8 @@ public class DiscoveryClient implements EurekaClient {
             //第一次全量抓取肯定符合这块逻辑
             if (clientConfig.shouldDisableDelta()
                     || (!Strings.isNullOrEmpty(clientConfig.getRegistryRefreshSingleVipAddress()))
-                    || forceFullRegistryFetch
-                    || (applications == null)
+                    || forceFullRegistryFetch  //这个是false
+                    || (applications == null)  //本地是否存在
                     || (applications.getRegisteredApplications().size() == 0)
                     || (applications.getVersion() == -1)) //Client application does not have latest library supporting delta
             {
@@ -1144,6 +1144,7 @@ public class DiscoveryClient implements EurekaClient {
                 logger.info("Application version is -1: {}", (applications.getVersion() == -1));
                 getAndStoreFullRegistry();
             } else {
+                //这里是增量抓取
                 getAndUpdateDelta(applications);
             }
             applications.setAppsHashCode(applications.getReconcileHashCode());
@@ -1263,6 +1264,24 @@ public class DiscoveryClient implements EurekaClient {
      *
      * @return the client response
      * @throws Throwable on error
+     *
+     *
+     * 增量抓取的逻辑
+     * 1. 抓取
+     *  1). 走的是apps/delta这个方法
+     *  2). remoteRegionsRef.get()会返回自己的一个String的数组,然后传递给EurekaServer
+     *  3). EurekaServer会计算出传递过来的一个hashkey值
+     *  4). 根据hashkey值去只读缓存和读写缓存中拉取
+     *  5). 然后返回给EurekaClient,同时包含EurekaServer全量hash表的值
+     * 2. 如果为null
+     *  1). 会再走一次全量抓取逻辑,拿到全量的注册表
+     * 3. 如果不是null
+     *  1). 先加锁
+     *  2). 更新增量的注册表,根据状态走不通的逻辑
+     *  3). 如果是新增的,则进行ADD逻辑
+     *  4). 如果是删除的,就在本地注册表进行删除
+     *  5). 如果是更新,则修改本地注册表
+     *
      */
     private void getAndUpdateDelta(Applications applications) throws Throwable {
         long currentUpdateGeneration = fetchRegistryGeneration.get();
@@ -1276,6 +1295,7 @@ public class DiscoveryClient implements EurekaClient {
         if (delta == null) {
             logger.warn("The server does not allow the delta revision to be applied because it is not safe. "
                     + "Hence got the full registry.");
+            //全量抓取的逻辑
             getAndStoreFullRegistry();
         } else if (fetchRegistryGeneration.compareAndSet(currentUpdateGeneration, currentUpdateGeneration + 1)) {
             logger.debug("Got delta update with apps hashcode {}", delta.getAppsHashCode());
@@ -1386,6 +1406,7 @@ public class DiscoveryClient implements EurekaClient {
                 }
 
                 ++deltaCount;
+                //如果是增加
                 if (ActionType.ADDED.equals(instance.getActionType())) {
                     Application existingApp = applications.getRegisteredApplications(instance.getAppName());
                     if (existingApp == null) {
@@ -1442,7 +1463,7 @@ public class DiscoveryClient implements EurekaClient {
         if (clientConfig.shouldFetchRegistry()) {
             // registry cache refresh timer
             /*
-             * 拿到发送心跳任务的间隔
+             * 拿到发送心跳任务的间隔 , 默认是30s
              */
             int registryFetchIntervalSeconds = clientConfig.getRegistryFetchIntervalSeconds();
             int expBackOffBound = clientConfig.getCacheRefreshExecutorExponentialBackOffBound();
@@ -1455,6 +1476,7 @@ public class DiscoveryClient implements EurekaClient {
                     registryFetchIntervalSeconds,
                     TimeUnit.SECONDS,
                     expBackOffBound,
+                    //执行的是这个方法的run
                     new CacheRefreshThread()
             );
             scheduler.schedule(

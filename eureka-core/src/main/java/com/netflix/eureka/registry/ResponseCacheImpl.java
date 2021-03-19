@@ -469,7 +469,9 @@ public class ResponseCacheImpl implements ResponseCache {
                             tracer = serializeDeltaAppsWithRemoteRegionTimer.start();
                             versionDeltaWithRegions.incrementAndGet();
                             versionDeltaWithRegionsLegacy.incrementAndGet();
-                            payload = getPayLoad(key,
+
+                            // 增量注册表抓取会走这个方法
+                           payload = getPayLoad(key,
                                     registry.getApplicationDeltasFromMultipleRegions(key.getRegions()));
                         } else {
                             tracer = serializeDeltaAppsTimer.start();

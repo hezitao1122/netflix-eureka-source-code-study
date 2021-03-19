@@ -398,6 +398,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             if (InstanceStatus.UP.equals(registrant.getStatus())) {
                 lease.serviceUp();
             }
+            //这里代表增加
             registrant.setActionType(ActionType.ADDED);
             recentlyChangedQueue.add(new RecentlyChangedItem(lease));
             // 设置服务的更新时间
@@ -1483,8 +1484,18 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         logger.debug("Processing override status using rule: {}", rule);
         return rule.apply(r, existingLease, isReplication).status();
     }
-
+    /** description:
+     * 这是个定时任务 ,
+     * 1. 默认是30s一次,查看一下服务实例的变更记录,是否还存留在队列之中
+     * 2. 如果服务实例在队列中停留超过了180s,则把这个服务给移除掉
+     * 3. recentlyChangedQueue这个队列表示最近变化的服务实例
+     * @return: java.util.TimerTask
+     * @Author: zeryts
+     * @email: hezitao@agree.com
+     * @Date: 2021/3/19 7:42
+     */
     private TimerTask getDeltaRetentionTask() {
+
         return new TimerTask() {
 
             @Override

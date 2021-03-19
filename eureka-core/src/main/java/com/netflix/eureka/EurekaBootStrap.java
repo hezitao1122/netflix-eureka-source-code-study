@@ -196,7 +196,7 @@ public class EurekaBootStrap implements ServletContextListener {
      *               5.ApplicationInfoManager
      *                 1) 直接通过InstanceInfo和EurekaInstanceConfig对象,构建一个ApplicationInfoManager
      *                 2) ApplicationInfoManager会对配置进行管理
-     * 第二步 : 初始化ApplicationInfoManager
+     * 第三步 : 初始化内部的EurekaClient
      *             1. ApplicationInfo
      *                 1). 相当于每一个ApplicationInfo就相当于一个eureka client
      *             2. EurekaInstanceConfig
@@ -205,7 +205,7 @@ public class EurekaBootStrap implements ServletContextListener {
      *                 3) EurekaInstanceConfig之中会提供一些默认值的硬编码存储
      *                 4) 存储的数据为: 例如
      *                     InstanceId\Appname等
-     *             3. Eureka Server
+     *             3. EurekaServer
      *                 1) Eureka Server自己也是一个Eureka Client
      *                 2) 会将自己作为一个Eureka Client把自己当成一个服务
      *                 3) 将自己注册到其他的Eureka Server上,组成集群
@@ -230,7 +230,7 @@ public class EurekaBootStrap implements ServletContextListener {
      * 第五步 : 构建PeerEurekaNodes,eureka server的集群数据
      *           1. PeerEurekaNodes代表了一个eureka server集群
      *           2. 这是一个EurekaServer的注册表
-     * 第六步: 构建eureka-server的上下文
+     * 第六步: 构建EurekaServerContext,EurekaServer的上下文
      *           1. eureka-server的上下文构建,将上面构建好的东西,都一起来构造一个EurekaServerContext
      *             1). 代表了服务器的上下文,包含了当前EurekaServer的所有东西
      *             2). 如果以后谁要使用上下文,直接从这获取即可

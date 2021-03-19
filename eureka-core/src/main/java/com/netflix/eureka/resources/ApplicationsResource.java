@@ -199,8 +199,9 @@ public class ApplicationsResource {
      * @param uriInfo  the {@link java.net.URI} information of the request made.
      * @return response containing the delta information of the
      *         {@link AbstractInstanceRegistry}.
-     */
-    @Path("delta")
+     *
+     *          增量抓取走的就是这个方法
+     */    @Path("delta")
     @GET
     public Response getContainerDifferential(
             @PathParam("version") String version,
@@ -233,7 +234,7 @@ public class ApplicationsResource {
             keyType = Key.KeyType.XML;
             returnMediaType = MediaType.APPLICATION_XML;
         }
-
+        // 抓取是走这个逻辑   卧槽
         Key cacheKey = new Key(Key.EntityType.Application,
                 ResponseCacheImpl.ALL_APPS_DELTA,
                 keyType, CurrentRequestVersion.get(), EurekaAccept.fromString(eurekaAccept), regions
@@ -247,6 +248,7 @@ public class ApplicationsResource {
                     .header(HEADER_CONTENT_TYPE, returnMediaType)
                     .build();
         } else {
+            // 这里返回的是全量缓存表的一个hash值
             response = Response.ok(responseCache.get(cacheKey)).build();
         }
 

@@ -249,28 +249,25 @@ public class EurekaClientServerRestIntegrationTest {
     private static void startServer() throws Exception {
         /*
         File warFile = findWar();
-
         server = new Server(8080);
-
         WebAppContext webapp = new WebAppContext();
         webapp.setContextPath("/");
           默认情况下,需要将eureka-server打成一个war包 , 通过war包进行启动
          //
         webapp.setWar(warFile.getAbsolutePath());
         server.setHandler(webapp);
-
         server.start();
-
         eurekaServiceUrl = "http://localhost:8080/v2";
         */
         server = new Server(8080);
-
-        WebAppContext webAppCxt = new WebAppContext(new File("./eureka-server/src/main/webapp").getAbsolutePath(),"/");
-        webAppCxt.setDescriptor(new File("./eureka-server/src/main/webapp/WEB-INF/web.xml").getAbsolutePath());
-        webAppCxt.setResourceBase(new File("./eureka-server/src/main/resources").getAbsolutePath());
+        WebAppContext webAppCxt = new WebAppContext(new File("src/main/webapp").getAbsolutePath(),"/");
+        webAppCxt.setDescriptor(new File("src/main/webapp/WEB-INF/web.xml").getAbsolutePath());
+        webAppCxt.setResourceBase(new File("src/main/resources").getAbsolutePath());
         webAppCxt.setClassLoader(Thread.currentThread().getContextClassLoader());
         server.setHandler(webAppCxt);
         server.start();
+        eurekaServiceUrl = "http://localhost:8080/v2";
+
 
     }
 
