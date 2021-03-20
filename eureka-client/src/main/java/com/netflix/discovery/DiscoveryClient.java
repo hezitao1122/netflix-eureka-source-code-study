@@ -1416,8 +1416,10 @@ public class DiscoveryClient implements EurekaClient {
      * @param delta
      *            the delta information received from eureka server in the last
      *            poll cycle.
+     *
+     *             更新增量
      */
-    private void updateDelta(Applications delta) {
+   private void updateDelta(Applications delta) {
         int deltaCount = 0;
         for (Application app : delta.getRegisteredApplications()) {
             for (InstanceInfo instance : app.getInstances()) {
@@ -1729,7 +1731,9 @@ public class DiscoveryClient implements EurekaClient {
             refreshRegistry();
         }
     }
-
+    /*
+      这里是刷新注册表信息
+     */
     @VisibleForTesting
     void refreshRegistry() {
         try {

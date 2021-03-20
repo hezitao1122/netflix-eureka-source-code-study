@@ -121,17 +121,19 @@ public class ResponseCacheImpl implements ResponseCache {
     private final ServerCodecs serverCodecs;
     /** description:
      * 过期策略
-     * 1. ReadWriteCache的主动过期机制
+     * 1. ReadWriteCache的自动过期机制
      *  1). 服务注册的时候会进行Registry的缓存刷新机制
      *  2). 会过期ALL_APPS中的所有的key
-     * 2. ReadWriteCache的自动过期策略
-     *  1).在间隔 responseCacheAutoExpirationInSeconds 会自动进行注册表缓存的过期 默认是180s
+     *  3). 在间隔 responseCacheAutoExpirationInSeconds 会自动进行注册表缓存的过期 默认是180s
+     * 2. ReadWriteCache的主动过期策略
+     *  1). 服务注册的时候，会注册一个ReadWrite的缓存监听
+     *  2). 当缓存中移除了某一项的时候，会去注册表进行数据同步
      * 3.  ReadOnlyCache的被动过期
      *  1). 每隔responseCacheUpdateIntervalMs 秒 (默认30)
      *  2). 拿到ReadOnly的map中的值
      *  3). 拿到ReadWrit的map中的值
      *  4). 比较两个值是否一致
-     *  5). 如果不一致的情况下,讲ReadWrit中的值同步到ReadOnly中去
+     *  5). 如果不一致的情况下,将ReadWrit中的值同步到ReadOnly中去
      * @Author: zeryts
      * @email: hezitao@agree.com
      * @Date: 2021/3/19 7:12
