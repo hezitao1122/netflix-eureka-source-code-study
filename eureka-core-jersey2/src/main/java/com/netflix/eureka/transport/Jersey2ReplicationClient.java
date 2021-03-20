@@ -50,6 +50,7 @@ public class Jersey2ReplicationClient extends AbstractJersey2EurekaHttpClient im
 
     @Override
     protected void addExtraHeaders(Builder webResource) {
+        // 如果是EurekaServer和EurekaServer之间进行通信,请求头的x-netflix-discovery-replication一定是true
         webResource.header(PeerEurekaNode.HEADER_REPLICATION, "true");
     }
 

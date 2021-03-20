@@ -71,7 +71,26 @@ public class PeerEurekaNodes {
     public int getMinNumberOfAvailablePeers() {
         return serverConfig.getHealthStatusMinNumberOfAvailablePeers();
     }
-
+    /** description: 初始化EurekaServer集群
+     *  1. 解析配置文件中的EurekaServer的url地址
+     *  2. 更新EurekaServer集群的地址
+     *  3.基于集群的url地址,构建一个PeerEurekaNodes集群,默认是15分钟会刷新一下EurekaServer集群
+     *  4. syncUp()方法拉取注册表
+     *      1). eurekaClient.getApplications 会从其他EurekaServer上拉取注册表
+     *      2). 如果没拉取到,会等待30s(默认30s,配置项是registrySyncRetryWaitMs)作为自己的注册表
+     *  5.注册 \ 下线 \ 故障
+     *      1). super.register()先在自己本地完成一个注册
+     *      2). 接着会调用replicateToPeers()方法,将这次注册请求同步到其他EurekaServer中
+     *      3). 会排出自己的url地址
+     *      4). 调用PeerEurekaNode.register()方法
+     *      5). 最终调用 apps/AppName 同步到其他EurekaServer
+     *      6). 如果是EurekaServer和EurekaServer之间进行通信,请求头的x-netflix-discovery-replication一定是true
+     *      7). 为true,代表另一个EurekaServer同步给了所有人,不会再进行EurekaServer之间同步
+     * @param
+     * @Author: zeryts
+     * @email: hezitao@agree.com
+     * @Date: 2021/3/21 6:50
+     */
     public void start() {
         taskExecutor = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactory() {
@@ -84,6 +103,8 @@ public class PeerEurekaNodes {
                 }
         );
         try {
+            // resolvePeerUrls解析地址
+            // updatePeerEurekaNodes更新集群地址
             updatePeerEurekaNodes(resolvePeerUrls());
             Runnable peersUpdateTask = new Runnable() {
                 @Override
@@ -155,7 +176,7 @@ public class PeerEurekaNodes {
             logger.warn("The replica size seems to be empty. Check the route 53 DNS Registry");
             return;
         }
-
+        // 拿到了一个EurekaServer的url地址
         Set<String> toShutdown = new HashSet<>(peerEurekaNodeUrls);
         toShutdown.removeAll(newPeerUrls);
         Set<String> toAdd = new HashSet<>(newPeerUrls);

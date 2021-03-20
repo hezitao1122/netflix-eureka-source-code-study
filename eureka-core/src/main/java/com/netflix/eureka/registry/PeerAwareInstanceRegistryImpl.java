@@ -433,9 +433,12 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
             leaseDuration = info.getLeaseInfo().getDurationInSecs();
         }
         /*
-            实际调用父类的register方法
+            实际调用父类的register方法 , 注册到自己上
          */
         super.register(info, leaseDuration, isReplication);
+        /*
+            这里注册到其他的EurekaServer
+         */
         replicateToPeers(Action.Register, info.getAppName(), info.getId(), info, null, isReplication);
     }
 
@@ -705,6 +708,9 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
 
             for (final PeerEurekaNode node : peerEurekaNodes.getPeerEurekaNodes()) {
                 // If the url represents this host, do not replicate to yourself.
+                /*
+                这里会排出自己的url
+                 */
                 if (peerEurekaNodes.isThisMyUrl(node.getServiceUrl())) {
                     continue;
                 }
