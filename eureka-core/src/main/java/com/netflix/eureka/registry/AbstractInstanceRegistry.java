@@ -745,9 +745,24 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
         evict(0l);
     }
 
+    /**
+     * 1. 遍历注册表中所有的实例,拿到每个服务的租约
+     * 2.拿到每个租约的时间,判断是否过期
+     *  1). 心跳机制的lastUpdateTimestamp + duration(默认是90s durationInSecs配置项) + additionalLeaseMs(补偿时间 , 默认90秒以上)
+     *  2). 如果当前时间比 1)计算的时间大,则代表过期了
+     *  3). 这是一个bug , 本来是90s内没有心跳,则会直接下线.这里直接再加了一个dition(超过90s)才会认为服务实例挂了
+     *  4). 将过期的实例加到一个列表中
+     * 3. 服务实例摘除,不能一次性摘除过多的实例,计算逻辑如下
+     *  1). 计算总共服务数total
+     *  2). 计算可以摘除的服务实例数  (total * RenewalPercentThreshold(renewalPercentThreshold配置项,默认是0.85) )
+     *  3). 选择失效实例数 / 可摘除的实例数中最大的一个进行摘除
+     * 4. 摘除实例调用服务下线逻辑,同EurekaClient主动下线机制
+     * @param additionalLeaseMs 两次调度时间是否超过了60s
+     */
     public void evict(long additionalLeaseMs) {
         logger.debug("Running the evict task");
 
+        //查看是否开启了自我保护机制,如果开启了就不会清理
         if (!isLeaseExpirationEnabled()) {
             logger.debug("DS: lease expiration is currently disabled.");
             return;
@@ -761,7 +776,11 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             Map<String, Lease<InstanceInfo>> leaseMap = groupEntry.getValue();
             if (leaseMap != null) {
                 for (Entry<String, Lease<InstanceInfo>> leaseEntry : leaseMap.entrySet()) {
+                    // 拿到每个服务的租约
                     Lease<InstanceInfo> lease = leaseEntry.getValue();
+                    //判断租约是否过期
+                    // 心跳机制的lastUpdateTimestamp + duration(默认是90s durationInSecs配置项) + additionalLeaseMs(补偿时间 , 不出问题这个时间很短)
+                    // 这是一个bug , 本来是90s内没有心跳,则会直接下线.这里直接再加了一个dition(正常情况下时间很短)才会认为服务实例挂了
                     if (lease.isExpired(additionalLeaseMs) && lease.getHolder() != null) {
                         expiredLeases.add(lease);
                     }
@@ -769,9 +788,16 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             }
         }
 
+        /*
+        不能一次性摘除过多的实例
+         1). 计算总共服务数total
+         2). 计算可以摘除的服务实例数  (total * RenewalPercentThreshold(renewalPercentThreshold配置项,默认是0.85) )
+         3). 选择失效实例数 / 可摘除的实例数中最大的一个进行摘除
+        */
         // To compensate for GC pauses or drifting local time, we need to use current registry size as a base for
         // triggering self-preservation. Without that we would wipe out full registry.
         int registrySize = (int) getLocalRegistrySize();
+        // 这个配置项是0.85
         int registrySizeThreshold = (int) (registrySize * serverConfig.getRenewalPercentThreshold());
         int evictionLimit = registrySize - registrySizeThreshold;
 
@@ -1370,14 +1396,40 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             return this.leaseInfo;
         }
     }
-
+    /** description:
+     * EurekaServer的主动下线
+     *  1.每个60s会运行后台任务 (默认是60S  配置项是evictionIntervalTimerInMs)
+     *  2. 计算dition补偿时间
+     *      1). 先获取当前时间
+     *      2). 再获取上一次执行的获取时间(默认是30s),第一次获取的时候就是0,将当前时间设置过去(evictionIntervalTimerInMs 默认是60s)
+     *      3). 获取(当前时间 - 上一次执行时间)的差值
+     *      4).将差值减60并返回(evictionIntervalTimerInMs配置项,默认是60)
+     *  3. 遍历注册表中所有的实例,拿到每个服务的租约
+     *  4.拿到每个租约的时间,判断是否过期
+     *      1). 心跳机制的lastUpdateTimestamp + duration(默认是90s durationInSecs配置项) + additionalLeaseMs(补偿时间 , 默认90秒以上)
+     *      2). 如果当前时间比 1)计算的时间大,则代表过期了
+     *      3). 这是一个bug , 本来是90s内没有心跳,则会直接下线.这里直接再加了一个dition(默认时间很短)才会认为服务实例挂了
+     *      4). 将过期的实例加到一个列表中
+     *  5. 服务实例摘除,不能一次性摘除过多的实例,计算逻辑如下
+     *      1). 计算总共服务数total
+     *      2). 计算可以摘除的服务实例数  (total * RenewalPercentThreshold(renewalPercentThreshold配置项,默认是0.85) )
+     *      3). 选择失效实例数 / 可摘除的实例数中最大的一个进行摘除
+     *  5. 摘除实例调用服务下线逻辑,同EurekaClient主动下线机制
+     * @param
+     * @return: void
+     * @Author: zeryts
+     * @email: hezitao@agree.com
+     * @Date: 2021/3/20 17:12
+     */
     protected void postInit() {
+
         renewsLastMin.start();
         if (evictionTaskRef.get() != null) {
             evictionTaskRef.get().cancel();
         }
         evictionTaskRef.set(new EvictionTask());
         evictionTimer.schedule(evictionTaskRef.get(),
+                //默认是60S  配置项是evictionIntervalTimerInMs
                 serverConfig.getEvictionIntervalTimerInMs(),
                 serverConfig.getEvictionIntervalTimerInMs());
     }
@@ -1418,16 +1470,28 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
          * vs the configured amount of time for execution. This is useful for cases where changes in time (due to
          * clock skew or gc for example) causes the actual eviction task to execute later than the desired time
          * according to the configured cycle.
+         *
+         * 1. 先获取当前时间
+         * 2. 再获取上一次执行的获取时间,第一次获取的时候就是0,将当前时间设置过去(evictionIntervalTimerInMs 默认是60s)
+         * 3. 获取(当前时间 - 上一次执行时间)的差值
+         * 4.将差值减60并返回(evictionIntervalTimerInMs配置项,默认是60)
          */
         long getCompensationTimeMs() {
+            //先获取当前时间
             long currNanos = getCurrentTimeNano();
+            //再获取上一次执行的获取时间,第一次获取的时候就是0,将当前时间设置过去 这里默认是60s
+            // 例如第一次设置为 20:00:00  现在正常时间为20:01:00
+            // 如果时钟出问题了 , 那就可能第二次调度时间为 20:02:30
             long lastNanos = lastExecutionNanosRef.getAndSet(currNanos);
             if (lastNanos == 0l) {
                 return 0l;
             }
-
+            // 这里应该是60s
             long elapsedMs = TimeUnit.NANOSECONDS.toMillis(currNanos - lastNanos);
+            // evictionIntervalTimerInMs 默认是60s   正常情况下,这里应该是得到 0
             long compensationTime = elapsedMs - serverConfig.getEvictionIntervalTimerInMs();
+            //这里相当于return   0 <= 01 ? 01 : 0;
+            // 如果时钟出问题了,则会返回 90
             return compensationTime <= 0l ? 0l : compensationTime;
         }
 
