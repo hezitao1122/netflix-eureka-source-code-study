@@ -1403,18 +1403,19 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
      *      1). 先获取当前时间
      *      2). 再获取上一次执行的获取时间(默认是30s),第一次获取的时候就是0,将当前时间设置过去(evictionIntervalTimerInMs 默认是60s)
      *      3). 获取(当前时间 - 上一次执行时间)的差值
-     *      4).将差值减60并返回(evictionIntervalTimerInMs配置项,默认是60)
+     *      4). 将差值减60并返回(evictionIntervalTimerInMs配置项,默认是60)如果小于01 则返回01
+     *      5). 如果因为 网络故障 \ 时钟故障 \ jvm卡顿时间长 等原因导致发送心跳的时间延长 , 补偿时间会很长
      *  3. 遍历注册表中所有的实例,拿到每个服务的租约
      *  4.拿到每个租约的时间,判断是否过期
      *      1). 心跳机制的lastUpdateTimestamp + duration(默认是90s durationInSecs配置项) + additionalLeaseMs(补偿时间 , 默认90秒以上)
      *      2). 如果当前时间比 1)计算的时间大,则代表过期了
-     *      3). 这是一个bug , 本来是90s内没有心跳,则会直接下线.这里直接再加了一个dition(默认时间很短)才会认为服务实例挂了
+     *      3). 这是一个bug , 本来是90s内没有心跳,则会直接下线.这里直接再加了一个dition(正常情况下时间很短)才会认为服务实例挂了
      *      4). 将过期的实例加到一个列表中
      *  5. 服务实例摘除,不能一次性摘除过多的实例,计算逻辑如下
      *      1). 计算总共服务数total
      *      2). 计算可以摘除的服务实例数  (total * RenewalPercentThreshold(renewalPercentThreshold配置项,默认是0.85) )
      *      3). 选择失效实例数 / 可摘除的实例数中最大的一个进行摘除
-     *  5. 摘除实例调用服务下线逻辑,同EurekaClient主动下线机制
+     *  6. 摘除实例调用服务下线逻辑,同EurekaClient主动下线机制
      * @param
      * @return: void
      * @Author: zeryts
