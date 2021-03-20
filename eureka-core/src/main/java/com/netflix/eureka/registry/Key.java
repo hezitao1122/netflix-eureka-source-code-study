@@ -32,11 +32,13 @@ public class Key {
     }
 
     public Key(EntityType entityType, String entityName, KeyType type, Version v, EurekaAccept eurekaAccept, @Nullable String[] regions) {
+        //全量抓取的时候为null
         this.regions = regions;
         this.entityType = entityType;
         this.entityName = entityName;
         this.requestType = type;
         this.requestVersion = v;
+        //全量抓取的时候为full
         this.eurekaAccept = eurekaAccept;
         hashKey = this.entityType + this.entityName + (null != this.regions ? Arrays.toString(this.regions) : "")
                 + requestType.name() + requestVersion.name() + this.eurekaAccept.name();

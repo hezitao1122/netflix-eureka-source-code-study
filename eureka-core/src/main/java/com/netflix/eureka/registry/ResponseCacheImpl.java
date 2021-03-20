@@ -387,7 +387,7 @@ public class ResponseCacheImpl implements ResponseCache {
         Value payload = null;
         try {
             if (useReadOnlyCache) {
-                // 去只读缓存中去读取
+                // 去只读缓存中去读取 全量抓取的时候,key为
                 final Value currentPayload = readOnlyCacheMap.get(key);
                 if (currentPayload != null) {
                     payload = currentPayload;
