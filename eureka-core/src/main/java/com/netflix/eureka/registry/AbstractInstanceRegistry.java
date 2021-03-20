@@ -140,7 +140,8 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                 serverConfig.getDeltaRetentionTimerIntervalInMs());
     }
     /** description: 这里是responseCache的初始化,ResponseCache中包含两个Map
-     * 1. readWriteCacheMap
+     * 1. readWriteCacheMap 读写缓存的map
+     * 2. readOnlyCacheMap 只读缓存的map
      * @Author: zeryts
      * @email: hezitao@agree.com
      * @Date: 2021/3/19 6:25
@@ -354,6 +355,9 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                         // Since the client wants to register it, increase the number of clients sending renews
                         // 增加发送更新的客户端数量  并执行更新
                         this.expectedNumberOfClientsSendingRenews = this.expectedNumberOfClientsSendingRenews + 1;
+                        /*
+                         * 增加一个服务实例后计算 numberOfRenewsPerMinThreshold值
+                         */
                         updateRenewsPerMinThreshold();
                     }
                 }
@@ -541,7 +545,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
                 }
             }
             /*
-                对租约进行续约
+                对租约进行续约 , 并记录上一分钟心跳 + 1
              */
             renewsLastMin.increment();
             leaseToRenew.renew();
@@ -757,6 +761,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
      *  2). 计算可以摘除的服务实例数  (total * RenewalPercentThreshold(renewalPercentThreshold配置项,默认是0.85) )
      *  3). 选择失效实例数 / 可摘除的实例数中最大的一个进行摘除
      * 4. 摘除实例调用服务下线逻辑,同EurekaClient主动下线机制
+     *
      * @param additionalLeaseMs 两次调度时间是否超过了60s
      */
     public void evict(long additionalLeaseMs) {
@@ -1492,7 +1497,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
             // evictionIntervalTimerInMs 默认是60s   正常情况下,这里应该是得到 0
             long compensationTime = elapsedMs - serverConfig.getEvictionIntervalTimerInMs();
             //这里相当于return   0 <= 01 ? 01 : 0;
-            // 如果时钟出问题了,则会返回 90
+            // 如果时钟出问题了,则会返回 90 , 这里其实返回的是EurekaServer定时调度卡顿的时间
             return compensationTime <= 0l ? 0l : compensationTime;
         }
 

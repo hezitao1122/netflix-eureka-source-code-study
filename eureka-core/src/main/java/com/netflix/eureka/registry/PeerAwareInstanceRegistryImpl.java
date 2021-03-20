@@ -235,6 +235,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
                     break;
                 }
             }
+            // 从别的EurekaServer上拉取一个全量注册表
             Applications apps = eurekaClient.getApplications();
             for (Application app : apps.getRegisteredApplications()) {
                 for (InstanceInfo instance : app.getInstances()) {
@@ -256,6 +257,7 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
     public void openForTraffic(ApplicationInfoManager applicationInfoManager, int count) {
         // Renewals happen every 30 seconds and for a minute it should be a factor of 2.
         this.expectedNumberOfClientsSendingRenews = count;
+        //这里计算阈值
         updateRenewsPerMinThreshold();
         logger.info("Got {} instances from neighboring DS node", count);
         logger.info("Renew threshold is: {}", numberOfRenewsPerMinThreshold);
@@ -501,13 +503,50 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
 
         }
     }
-
+    /** description: 自我保护机制的代码
+     * 1. 配置项是enableSelfPreservation ,默认是true
+     * 2. 计算上一分钟的心跳次数
+     *      1). 如果上一分钟的心跳数 > 我期望值  , 就ok 返回TRUE , 那么就可以清理故障实例
+     *      2). 如果上一分钟的心跳数< 我的期望,则会返回false ,不清理故障实例
+     * 3. 期望的心跳次数怎么算出来的?
+     *      1). numberOfRenewsPerMinThreshold来控制
+     *      2). 首先从别的EurekaServer上拉取一个全量注册表
+     *      3). 老版本的计算公式为: 从相邻EurekaServer拷贝过来注册实例的数量 * 2 * serverConfig.getRenewalPercentThreshold()<这个是服务下线的阈值 , 默认是0.85>
+     *      4). 新版本计算为 numberOfRenewsPerMinThreshold = (int) (this.expectedNumberOfClientsSendingRenews<这个是所有服务实例数>
+     *                 * (60.0 / serverConfig.getExpectedClientRenewalIntervalSeconds()) <这个是心跳间隔,默认是30s>
+     *                 * serverConfig.getRenewalPercentThreshold())  <这个是服务下线的阈值 , 默认是0.85>
+     * 4. 上一次心跳次数是怎么算出来的?
+     *      1). RenewsLastMin
+     *          (1) currentBucket 存储的是当前的心跳次数
+     *          (2) lastBucket 存储的是上一分钟的心跳次数
+     *      2). 每一次心跳过来都会计算，在renewsLastMin中的currentBucket值上进行+1操作
+     *      3). MeasuredRate有个定时调度任务，每分钟会把currentBucket这个值设置到lastBuc
+     *      4). 将MeasuredRate中的currentBucket值设置为0
+     *  5. 自我保护机制的触发
+     *      1). 上一分钟的心跳次数，比我们预期的一分钟的心跳次数要小，触发自我保护机制
+     *      2). 触发自我保护机制后，此时EurekaServer会人为网络出现了故障，大量的服务实例无法发送心跳
+     *  6. 服务注册、下线、故障
+     *      1). 新版本代码都会进行numberOfRenewsPerMinThreshold值的计算 计算公式为 3- 4)
+     *      2). 老版本： 服务注册、下线、故障 都对numberOfRenewsPerMinThreshold值进行 + 2  或 - 2
+     *      3). 老版本故障摘除的时候，是没有期望值更新，没有重新计算numberOfRenewsPerMinThreshold值  存在bug
+     *      4). 新版本故障摘除是存在的,走上述的代码
+     *  6. 定时更新
+     *      1) Registry注册表每15分钟会跑一次 ， 计算一次numberOfRenewsPerMinThreshold值.新版本和老版本算法同上
+     * @Author: zeryts
+     * @email: hezitao@agree.com
+     * @Date: 2021/3/20 18:34
+     */
     @Override
     public boolean isLeaseExpirationEnabled() {
+
         if (!isSelfPreservationModeEnabled()) {
             // The self preservation mode is disabled, hence allowing the instances to expire.
             return true;
         }
+        // numberOfRenewsPerMinThreshold 我期望的一分钟要有多少次心跳发送过来
+        // getNumOfRenewsInLastMin() 上一分钟所有服务实例一共发送过来多少个心跳
+        // 如果上一分钟的心跳数(102次) > 我期望的100次 , 就ok 返回TRUE , 那么就可以清理故障实例
+        // 如果上一分钟的心跳书(20次) < 我的期望100次 ,则会返回false
         return numberOfRenewsPerMinThreshold > 0 && getNumOfRenewsInLastMin() > numberOfRenewsPerMinThreshold;
     }
 
