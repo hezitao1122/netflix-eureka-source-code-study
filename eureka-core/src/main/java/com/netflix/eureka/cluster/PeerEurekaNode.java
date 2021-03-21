@@ -197,6 +197,8 @@ public class PeerEurekaNode {
      * @param overriddenStatus
      *            the overridden status information if any of the instance.
      * @throws Throwable
+     *
+     * 维持心跳 续约
      */
     public void heartbeat(final String appName, final String id,
                           final InstanceInfo info, final InstanceStatus overriddenStatus,
@@ -246,6 +248,7 @@ public class PeerEurekaNode {
      *            the asg name if any of this instance.
      * @param newStatus
      *            the new status of the ASG.
+     *            状态同步
      */
     public void statusUpdate(final String asgName, final ASGStatus newStatus) {
         long expiryTime = System.currentTimeMillis() + maxProcessingDelayMs;
