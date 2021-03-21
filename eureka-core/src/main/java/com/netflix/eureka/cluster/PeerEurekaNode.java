@@ -59,11 +59,13 @@ public class PeerEurekaNode {
 
     /**
      * Maximum amount of time in ms to wait for new items prior to dispatching a batch of tasks.
+     * 默认每隔500ms
      */
     private static final long MAX_BATCHING_DELAY_MS = 500;
 
     /**
      * Maximum batch size for batched requests.
+     * batch最大值 ?
      */
     private static final int BATCH_SIZE = 250;
 
@@ -101,6 +103,7 @@ public class PeerEurekaNode {
 
         String batcherName = getBatcherName();
         ReplicationTaskProcessor taskProcessor = new ReplicationTaskProcessor(targetHost, replicationClient);
+        // 初始化 batchingDispatcher
         this.batchingDispatcher = TaskDispatchers.createBatchingTaskDispatcher(
                 batcherName,
                 config.getMaxElementsInPeerReplicationPool(),
@@ -159,6 +162,7 @@ public class PeerEurekaNode {
      */
     public void cancel(final String appName, final String id) throws Exception {
         long expiryTime = System.currentTimeMillis() + maxProcessingDelayMs;
+        //这里往 batchingDispatcher 里面去放
         batchingDispatcher.process(
                 taskId("cancel", appName, id),
                 new InstanceReplicationTask(targetHost, Action.Cancel, appName, id) {
@@ -298,6 +302,7 @@ public class PeerEurekaNode {
         long expiryTime = System.currentTimeMillis() + maxProcessingDelayMs;
         batchingDispatcher.process(
                 taskId("deleteStatusOverride", appName, id),
+
                 new InstanceReplicationTask(targetHost, Action.DeleteStatusOverride, info, null, false) {
                     @Override
                     public EurekaHttpResponse<Void> execute() {

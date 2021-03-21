@@ -105,6 +105,8 @@ public class PeerEurekaNodes {
         try {
             // resolvePeerUrls解析地址
             // updatePeerEurekaNodes更新集群地址
+
+            // 这里同步请求是走三层队列的机制
             updatePeerEurekaNodes(resolvePeerUrls());
             Runnable peersUpdateTask = new Runnable() {
                 @Override

@@ -181,6 +181,7 @@ class AcceptorExecutor<ID, T> {
     }
 
     class AcceptorRunner implements Runnable {
+
         @Override
         public void run() {
             long scheduleTime = 0;
@@ -227,6 +228,9 @@ class AcceptorExecutor<ID, T> {
                 }
                 // If all queues are empty, block for a while on the acceptor queue
                 if (reprocessQueue.isEmpty() && acceptorQueue.isEmpty() && pendingTasks.isEmpty()) {
+                    /*
+                        这里将acceptorQueue的任务取出来
+                     */
                     TaskHolder<ID, T> taskHolder = acceptorQueue.poll(10, TimeUnit.MILLISECONDS);
                     if (taskHolder != null) {
                         appendTaskHolder(taskHolder);
@@ -268,6 +272,9 @@ class AcceptorExecutor<ID, T> {
             }
             TaskHolder<ID, T> previousTask = pendingTasks.put(taskHolder.getId(), taskHolder);
             if (previousTask == null) {
+                /*
+                    然后放到processingOrder队列之中
+                 */
                 processingOrder.add(taskHolder.getId());
             } else {
                 overriddenTasks++;
@@ -293,15 +300,22 @@ class AcceptorExecutor<ID, T> {
         }
 
         void assignBatchWork() {
+            /*
+                默认500ms进一次if里面
+             */
             if (hasEnoughTasksForNextBatch()) {
                 if (batchWorkRequests.tryAcquire(1)) {
                     long now = System.currentTimeMillis();
+                    /*
+                        这里查看是否超过了maxBatchingSize = 1
+                     */
                     int len = Math.min(maxBatchingSize, processingOrder.size());
                     List<TaskHolder<ID, T>> holders = new ArrayList<>(len);
                     while (holders.size() < len && !processingOrder.isEmpty()) {
                         ID id = processingOrder.poll();
                         TaskHolder<ID, T> holder = pendingTasks.remove(id);
                         if (holder.getExpiryTime() > now) {
+                            //取出processingOrder里面的id,然后从pendingTasks中取出具体的task,放到一个集合中,打成一个batch
                             holders.add(holder);
                         } else {
                             expiredTasks++;
@@ -310,7 +324,9 @@ class AcceptorExecutor<ID, T> {
                     if (holders.isEmpty()) {
                         batchWorkRequests.release();
                     } else {
+
                         batchSizeMetric.record(holders.size(), TimeUnit.MILLISECONDS);
+                        //将batch放到batchWorkQueue队列之中
                         batchWorkQueue.add(holders);
                     }
                 }
@@ -327,6 +343,7 @@ class AcceptorExecutor<ID, T> {
 
             TaskHolder<ID, T> nextHolder = pendingTasks.get(processingOrder.peek());
             long delay = System.currentTimeMillis() - nextHolder.getSubmitTimestamp();
+            // maxBatchingDelay 默认是500ms
             return delay >= maxBatchingDelay;
         }
     }

@@ -74,6 +74,7 @@ public class PeerReplicationResource {
      * @param replicationList
      *            The List of replication events from peer eureka nodes
      * @return A batched response containing the information about the responses of individual events
+     * 会走这里
      */
     @Path("batch")
     @POST
@@ -135,6 +136,7 @@ public class PeerReplicationResource {
     }
 
     private static Builder handleRegister(ReplicationInstance instanceInfo, ApplicationResource applicationResource) {
+        //这里一定会把replication设置为true
         applicationResource.addInstance(instanceInfo.getInstanceInfo(), REPLICATION);
         return new Builder().setStatusCode(Status.OK.getStatusCode());
     }

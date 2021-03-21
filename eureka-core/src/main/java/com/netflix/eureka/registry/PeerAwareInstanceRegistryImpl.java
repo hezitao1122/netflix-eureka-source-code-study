@@ -725,6 +725,41 @@ public class PeerAwareInstanceRegistryImpl extends AbstractInstanceRegistry impl
      * Replicates all instance changes to peer eureka nodes except for
      * replication traffic to this node.
      *
+     *
+     *
+     * 集群间同步请求是走三层队列的机制
+     * 1. batchingDispatcher
+     *      1). 根据请求类型不同,会封装成不同的ReplicationTask
+     *      2). 请求实现是InstanceReplicationTask的匿名内部类
+     *      3). 然后放到TaskDispatcher这个定时任务里面去,实现是TaskDispatchers
+     *      4). 会创建一个任务往acceptorQueue这个队列中,然后让任务数+1
+     * 2.AcceptorExecutor
+     *      1). AcceptorRunner线程有一个while循环会将acceptorQueue的任务取出来
+     *      2). 然后将Task放到pendingTasks,将taskID放到processingOrder之中
+     *      3). 对overriddenTasks进行+1
+     *      4). 默认500ms打一次batch包,取出processingOrder里面的id,然后从pendingTasks中取出具体的task,放到一个集合中,打成一个batch,最大是250
+     *      5). 将打好的batch放到batchWorkQueue队列之中
+     * 3. TaskExecutors
+     *      1).这个线程一直去拿打好的batch 然后交给ReplicationTaskProcessor的process方法
+     *      2). 并处理返回结果
+     * 4. ReplicationTaskProcessor
+     *      1). 将ReplicationTask打成一个ReplicationList
+     *      1). 调用 peerreplication/batch/ 这个url把ReplicationList传递过去
+     * 5. PeerReplicationResource
+     *      1). 根据上述的jeysey框架,最终调用是在这Resource
+     *      2). 遍历所有的ReplicationInstance,根据不同的操作请求,调用不同的处理方法
+     *      3). 一定会把replication设置为true
+     *
+     *
+     * 闪光点
+     *  1. 集群同步的机制: 闪光点 , client端可以找任何一个server发送请求,
+     *      然后这个server会将请求同步到其他所有的server上去,但是其他的server仅仅会在自己本地执行,不会再次同步
+     *  2. 数据同步的异步处理机制: 闪光点,三个队列,
+     *      1). 第一个队列是纯写入;
+     *      2). 第二个队列是用来根据时间和大小,来拆分请求;
+     *      3). 第三个队列,用来放批处理任务
+     *     最终来实现一个异步批处理机制
+     *
      */
     private void replicateInstanceActionsToPeers(Action action, String appName,
                                                  String id, InstanceInfo info, InstanceStatus newStatus,

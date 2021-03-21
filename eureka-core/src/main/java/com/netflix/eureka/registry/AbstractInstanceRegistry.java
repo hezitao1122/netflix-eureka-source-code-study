@@ -508,6 +508,7 @@ public abstract class AbstractInstanceRegistry implements InstanceRegistry {
      * replication.
      *
      * @see com.netflix.eureka.lease.LeaseManager#renew(java.lang.String, java.lang.String, boolean)
+     * 续约
      */
     public boolean renew(String appName, String id, boolean isReplication) {
         RENEW.increment(isReplication);

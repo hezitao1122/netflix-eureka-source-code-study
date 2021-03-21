@@ -31,12 +31,22 @@ public abstract class InstanceReplicationTask extends ReplicationTask {
         this.overriddenStatus = null;
         this.replicateInstanceInfo = false;
     }
-
+    /** description:
+     * @param peerNodeName 需要同步阶段的信息
+     * @param action 要执行的操作
+     * @param instanceInfo 同步的节点
+     * @param overriddenStatus 同步节点状态
+     * @param replicateInstanceInfo 是否同步到其他节点
+     * @Author: zeryts
+     * @email: hezitao@agree.com
+     * @Date: 2021/3/21 7:58
+     */
     protected InstanceReplicationTask(String peerNodeName,
                                       Action action,
                                       InstanceInfo instanceInfo,
                                       InstanceStatus overriddenStatus,
                                       boolean replicateInstanceInfo) {
+
         super(peerNodeName, action);
         this.appName = instanceInfo.getAppName();
         this.id = instanceInfo.getId();

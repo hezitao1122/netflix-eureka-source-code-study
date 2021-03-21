@@ -169,6 +169,9 @@ class TaskExecutors<ID, T> {
         }
     }
 
+    /**
+     * 这个线程一直去拿打好的batch 然后交给ReplicationTaskProcessor的process方法
+     */
     static class BatchWorkerRunnable<ID, T> extends WorkerRunnable<ID, T> {
 
         BatchWorkerRunnable(String workerName,

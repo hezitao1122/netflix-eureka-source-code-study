@@ -73,8 +73,15 @@ class ReplicationTaskProcessor implements TaskProcessor<ReplicationTask> {
         return ProcessingResult.Success;
     }
 
+    /**
+     * 批量处理batchTask走的是这个逻辑
+     * @param tasks
+     * @return
+     */
     @Override
     public ProcessingResult process(List<ReplicationTask> tasks) {
+
+        //把batch打一个list
         ReplicationList list = createReplicationListOf(tasks);
         try {
             EurekaHttpResponse<ReplicationListResponse> response = replicationClient.submitBatchUpdates(list);
